@@ -108,7 +108,7 @@
         let csvData = [];          
         let coordData = {};        
         let allColorSet = new Set(); 
-        let dataFileModifiedTime = "확인 불가"; // 💡 파일 업로드 시간을 저장할 변수
+        let dataFileModifiedTime = "확인 불가"; 
 
         window.onload = function() {
             fetch('coordinate.csv')
@@ -126,7 +126,6 @@
                 .then(response => {
                     if (!response.ok) throw new Error('data.csv 파일을 찾을 수 없습니다.');
                     
-                    // 💡 서버에서 data.csv 파일의 최종 수정 헤더 시간을 추출하여 변환
                     const lastModified = response.headers.get('Last-Modified');
                     if (lastModified) {
                         const dateObj = new Date(lastModified);
@@ -148,8 +147,8 @@
                     updateColorDropdown("");
                     
                     const coordCount = Object.keys(coordData).length;
-                    // 💡 상단 알림 메시지에 데이터 업로드 일시 최종 표기 완료
-                    document.getElementById('debugBox').innerHTML = `✅ 데이터 연동 완료! (등록된 판매처 좌표: ${coordCount}곳 / 등록된 전체 재고: ${csvData.length}건)<br>📅 <b>data.csv 최신 업로드 일시:</b> ${dataFileModifiedTime}`;
+                    // 💡 [수정 완료] 'data.csv' 파일명 텍스트를 제거하고 출력하도록 변경했습니다.
+                    document.getElementById('debugBox').innerHTML = `✅ 데이터 연동 완료! (등록된 판매처 좌표: ${coordCount}곳 / 등록된 전체 재고: ${csvData.length}건)<br>📅 <b>최신 업로드 일시:</b> ${dataFileModifiedTime}`;
                 })
                 .catch(error => {
                     const debugEl = document.getElementById('debugBox');
