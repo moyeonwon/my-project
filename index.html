@@ -12,8 +12,14 @@
         label { display: block; font-size: 13px; color: #7f8c8d; margin-bottom: 5px; font-weight: bold; }
         input { padding: 10px; width: 220px; border: 1px solid #ccd1d9; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
         input:focus { border-color: #3498db; outline: none; }
-        button { padding: 10px 25px; background-color: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; transition: background 0.2s; }
-        button:hover { background-color: #2980b9; }
+        
+        /* 버튼 스타일 */
+        button { padding: 10px 25px; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; transition: background 0.2s; margin-right: 5px; }
+        .btn-search { background-color: #3498db; }
+        .btn-search:hover { background-color: #2980b9; }
+        .btn-reset { background-color: #95a5a6; }
+        .btn-reset:hover { background-color: #7f8c8d; }
+
         .table-container { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; margin-top: 20px; }
         table { width: 100%; border-collapse: collapse; text-align: left; }
         th, td { padding: 14px 16px; border-bottom: 1px solid #edf2f7; font-size: 14px; }
@@ -26,18 +32,19 @@
 <body>
 
     <h1>📋 재고 및 담당자 조회 시스템</h1>
-    <p class="info-text">* 엑셀 지정 열(F, L, O, R, S) 데이터를 기준으로 3행부터 읽어옵니다.</p>
+    <p class="info-text">* 모델명과 색상은 일부 글자만 입력해도 검색되며, 빈칸으로 검색 시 전체 데이터가 나옵니다.</p>
     
     <div class="search-box">
         <div class="input-group">
             <label for="modelSearch">모델명 (O열)</label>
-            <input type="text" id="modelSearch" placeholder="모델명 입력">
+            <input type="text" id="modelSearch" placeholder="모델명 입력 (예: Galaxy)">
         </div>
         <div class="input-group">
             <label for="colorSearch">색상 (R열)</label>
-            <input type="text" id="colorSearch" placeholder="색상 입력">
+            <input type="text" id="colorSearch" placeholder="색상 입력 (예: 블랙)">
         </div>
-        <button onclick="searchData()">검색</button>
+        <button class="btn-search" onclick="searchData()">검색</button>
+        <button class="btn-reset" onclick="resetForm()">초기화</button>
     </div>
 
     <div class="table-container" id="tableContainer" style="display: none;">
@@ -73,23 +80,21 @@
                 });
         };
 
-        // 지정된 엑셀 알파벳 열 위치에서 데이터를 뽑아내는 함수
+        // 3행 기준으로 CSV 파싱
         function parseCSV(text) {
             const lines = text.split(/\r?\n/);
-            if (lines.length < 3) return; // 3행 미만이면 종료
+            if (lines.length < 3) return;
 
-            // 4번째 줄(인덱스 3)부터 데이터 진짜 시작
             for (let i = 3; i < lines.length; i++) {
                 if (!lines[i].trim()) continue;
                 
                 const cols = lines[i].split(',').map(c => c.trim());
                 
-                // 💡 각 알파벳 열에 맞게 컴퓨터 기준 숫자로 세팅 완료!
-                let manager = cols[5] || '';  // F열 (인덱스 5)
-                let location = cols[11] || ''; // L열 (인덱스 11)
-                let model = cols[14] || '';    // O열 (인덱스 14)
-                let color = cols[17] || '';    // R열 (인덱스 17) ✨ 수정 완료!
-                let serial = cols[18] || '';   // S열 (인덱스 18)
+                let manager = cols[5] || '';  // F열
+                let location = cols[11] || ''; // L열
+                let model = cols[14] || '';    // O열
+                let color = cols[17] || '';    // R열
+                let serial = cols[18] || '';   // S열
 
                 csvData.push({
                     '영업담당': manager,
@@ -101,7 +106,7 @@
             }
         }
 
-        // 검색 기능
+        // 검색 기능 (일부 입력 / 단독 입력 / 빈칸 입력 대응)
         function searchData() {
             const modelQuery = document.getElementById('modelSearch').value.toLowerCase().trim();
             const colorQuery = document.getElementById('colorSearch').value.toLowerCase().trim();
@@ -110,9 +115,10 @@
             const container = document.getElementById('tableContainer');
             const noResult = document.getElementById('noResult');
             
-            tbody.innerHTML = '';
+            tbody.innerHTML = ''; // 이전 결과 초기화
 
             const filtered = csvData.filter(row => {
+                // 입력창이 빈칸이면 무조건 참(True), 값이 있으면 포함(Includes) 여부 검사
                 const matchModel = modelQuery === '' || row['모델명'].toLowerCase().includes(modelQuery);
                 const matchColor = colorQuery === '' || row['색상'].toLowerCase().includes(colorQuery);
                 return matchModel && matchColor;
@@ -136,6 +142,18 @@
                 container.style.display = 'none';
                 noResult.style.display = 'block';
             }
+        }
+
+        // 초기화 버튼 기능
+        function resetForm() {
+            // 1. 입력창 내용 지우기
+            document.getElementById('modelSearch').value = '';
+            document.getElementById('colorSearch').value = '';
+            
+            // 2. 출력된 화면 결과 모두 숨기기
+            document.getElementById('resultBody').innerHTML = '';
+            document.getElementById('tableContainer').style.display = 'none';
+            document.getElementById('noResult').style.display = 'none';
         }
     </script>
 </body>
