@@ -108,6 +108,7 @@
         let csvData = [];          
         let coordData = {};        
         let allColorSet = new Set(); 
+        let dataFileModifiedTime = "확인 불가"; // 💡 파일 업로드 시간을 저장할 변수
 
         window.onload = function() {
             fetch('coordinate.csv')
@@ -124,6 +125,19 @@
                 })
                 .then(response => {
                     if (!response.ok) throw new Error('data.csv 파일을 찾을 수 없습니다.');
+                    
+                    // 💡 서버에서 data.csv 파일의 최종 수정 헤더 시간을 추출하여 변환
+                    const lastModified = response.headers.get('Last-Modified');
+                    if (lastModified) {
+                        const dateObj = new Date(lastModified);
+                        const yyyy = dateObj.getFullYear();
+                        const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                        const dd = String(dateObj.getDate()).padStart(2, '0');
+                        const hh = String(dateObj.getHours()).padStart(2, '0');
+                        const min = String(dateObj.getMinutes()).padStart(2, '0');
+                        dataFileModifiedTime = `${yyyy}년 ${mm}월 ${dd}일 ${hh}시 ${min}분`;
+                    }
+                    
                     return response.arrayBuffer();
                 })
                 .then(buffer => {
@@ -134,7 +148,8 @@
                     updateColorDropdown("");
                     
                     const coordCount = Object.keys(coordData).length;
-                    document.getElementById('debugBox').innerHTML = `✅ 데이터 연동 완료! (등록된 판매처 좌표: ${coordCount}곳 / 등록된 전체 재고: ${csvData.length}건)`;
+                    // 💡 상단 알림 메시지에 데이터 업로드 일시 최종 표기 완료
+                    document.getElementById('debugBox').innerHTML = `✅ 데이터 연동 완료! (등록된 판매처 좌표: ${coordCount}곳 / 등록된 전체 재고: ${csvData.length}건)<br>📅 <b>data.csv 최신 업로드 일시:</b> ${dataFileModifiedTime}`;
                 })
                 .catch(error => {
                     const debugEl = document.getElementById('debugBox');
@@ -234,8 +249,6 @@
                 let serial = cols[18] || '';   
                 let releaseDate = cols[33] || ''; 
 
-                // 💡 [핵심 추가] 모델명 내부에 'so' 또는 'SO'가 있다면 공백으로 치환하여 제거합니다.
-                // 정규식 /so/gi 구문을 사용하여 대소문자 구분 없이 모든 'so'를 찾아 지웁니다.
                 if (model) {
                     model = model.replace(/so/gi, '');
                 }
