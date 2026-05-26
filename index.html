@@ -74,7 +74,9 @@
             </div>
             <div class="input-group">
                 <label for="colorSearch">색상</label>
-                <input type="text" id="colorSearch" placeholder="색상 입력">
+                <select id="colorSearch">
+                    <option value="">-- 전체 --</option>
+                </select>
             </div>
         </div>
 
@@ -93,11 +95,12 @@
                     <th>모델명</th>
                     <th>색상</th>
                     <th>일련번호</th>
-                    <th>출고일</th> <th>거리 (km)</th>
+                    <th>출고일</th> 
+                    <th>거리 (km)</th>
                 </tr>
             </thead>
             <tbody id="resultBody">
-                </tbody>
+            </tbody>
         </table>
     </div>
 
@@ -106,6 +109,7 @@
     <script>
         let csvData = [];          
         let coordData = {};        
+        let colorSet = new Set(); // 💡 중복 없이 색상 종류를 보관할 저장소 추가
 
         window.onload = function() {
             fetch('coordinate.csv')
@@ -128,6 +132,9 @@
                     const decoder = new TextDecoder('euc-kr');
                     const text = decoder.decode(buffer);
                     parseDataCSV(text);
+                    
+                    // 💡 실시간 수집된 색상을 드롭다운 메뉴에 주입 및 정렬
+                    populateColorDropdown();
                     
                     const coordCount = Object.keys(coordData).length;
                     document.getElementById('debugBox').innerHTML = `✅ 데이터 연동 완료! (등록된 판매처 좌표: ${coordCount}곳 / 등록된 전체 재고: ${csvData.length}건)`;
@@ -228,7 +235,12 @@
                 let model = cols[14] || '';    // O
                 let color = cols[17] || '';    // R
                 let serial = cols[18] || '';   // S
-                let releaseDate = cols[33] || ''; // 💡 AH열 (엑셀의 34번째 열이므로 컴퓨터 인덱스로는 33입니다)
+                let releaseDate = cols[33] || ''; // AH열
+
+                // 💡 만약 데이터에 색상이 명시되어 있다면 데이터베이스 저장 목록에 등록
+                if (color.trim() !== "") {
+                    colorSet.add(color.trim());
+                }
 
                 csvData.push({
                     '영업담당': manager,
@@ -236,9 +248,24 @@
                     '모델명': model,
                     '색상': color,
                     '일련번호': serial,
-                    '출고일': releaseDate // 💡 출고일 객체 속성 추가
+                    '출고일': releaseDate 
                 });
             }
+        }
+
+        // 💡 실시간으로 수집된 유일한 색상들을 드롭다운 선택 메뉴로 생성해주는 함수
+        function populateColorDropdown() {
+            const colorSelect = document.getElementById('colorSearch');
+            
+            // 기존 선택 옵션을 유지하되 가나다 정렬 후 배치
+            const sortedColors = Array.from(colorSet).sort();
+            
+            sortedColors.forEach(color => {
+                const option = document.createElement('option');
+                option.value = color;
+                option.textContent = color;
+                colorSelect.appendChild(option);
+            });
         }
 
         function getDistance(lat1, lng1, lat2, lng2) {
@@ -255,7 +282,7 @@
         function searchData() {
             const baseLoc = document.getElementById('baseLocationSelect').value;
             const modelQuery = document.getElementById('modelSearch').value.toLowerCase().trim();
-            const colorQuery = document.getElementById('colorSearch').value.toLowerCase().trim();
+            const colorQuery = document.getElementById('colorSearch').value.toLowerCase().trim(); // 💡 드롭다운 값 읽기
             
             const tbody = document.getElementById('resultBody');
             const container = document.getElementById('tableContainer');
@@ -314,7 +341,7 @@
         function resetForm() {
             document.getElementById('baseLocationSearch').value = '';
             document.getElementById('modelSearch').value = '';
-            document.getElementById('colorSearch').value = '';
+            document.getElementById('colorSearch').value = ''; // 드롭다운 첫 번째 요소(-- 전체 --)로 초기화
             updateDropdown(""); 
             document.getElementById('resultBody').innerHTML = '';
             document.getElementById('tableContainer').style.display = 'none';
