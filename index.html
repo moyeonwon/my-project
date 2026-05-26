@@ -3,17 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>재고 및 담당자 검색 시스템</title>
+    <title>거리순 실시간 재고 검색 시스템</title>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; margin: 20px; background-color: #f4f6f9; color: #333; }
         h1 { color: #2c3e50; font-size: 24px; margin-bottom: 20px; }
         .search-box { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .input-group { display: inline-block; margin-right: 15px; margin-bottom: 10px; }
         label { display: block; font-size: 13px; color: #7f8c8d; margin-bottom: 5px; font-weight: bold; }
-        input { padding: 10px; width: 220px; border: 1px solid #ccd1d9; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
-        input:focus { border-color: #3498db; outline: none; }
+        input, select { padding: 10px; width: 220px; border: 1px solid #ccd1d9; border-radius: 6px; font-size: 14px; box-sizing: border-box; background-color: #fff; }
+        input:focus, select:focus { border-color: #3498db; outline: none; }
         
-        /* 버튼 스타일 */
         button { padding: 10px 25px; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; transition: background 0.2s; margin-right: 5px; }
         .btn-search { background-color: #3498db; }
         .btn-search:hover { background-color: #2980b9; }
@@ -31,17 +30,23 @@
 </head>
 <body>
 
-    <h1>📋 재고 및 담당자 조회 시스템</h1>
-    <p class="info-text">* 모델명과 색상은 일부 글자만 입력해도 검색되며, 빈칸으로 검색 시 전체 데이터가 나옵니다.</p>
+    <h1>🌐 실시간 위치 기준 재고 검색 시스템</h1>
+    <p class="info-text">* 내 위치(기준 보유처)와의 직선거리를 자동 계산하여 가장 가까운 순으로 재고를 정렬합니다.</p>
     
     <div class="search-box">
         <div class="input-group">
+            <label for="baseLocation">내 위치 (기준 보유처)</label>
+            <select id="baseLocation">
+                <option value="">-- 선택하세요 --</option>
+            </select>
+        </div>
+        <div class="input-group">
             <label for="modelSearch">모델명 (O열)</label>
-            <input type="text" id="modelSearch" placeholder="모델명 입력 (예: Galaxy)">
+            <input type="text" id="modelSearch" placeholder="모델명 입력 (일부 입력 가능)">
         </div>
         <div class="input-group">
             <label for="colorSearch">색상 (R열)</label>
-            <input type="text" id="colorSearch" placeholder="색상 입력 (예: 블랙)">
+            <input type="text" id="colorSearch" placeholder="색상 입력 (일부 입력 가능)">
         </div>
         <button class="btn-search" onclick="searchData()">검색</button>
         <button class="btn-reset" onclick="resetForm()">초기화</button>
@@ -51,11 +56,12 @@
         <table id="resultTable">
             <thead>
                 <tr>
-                    <th>영업담당</th>
-                    <th>보유처</th>
-                    <th>모델명</th>
-                    <th>색상</th>
-                    <th>일련번호</th>
+                    <th>영업담당 (F)</th>
+                    <th>보유처 (L)</th>
+                    <th>모델명 (O)</th>
+                    <th>색상 (R)</th>
+                    <th>일련번호 (S)</th>
+                    <th>거리 (km)</th>
                 </tr>
             </thead>
             <tbody id="resultBody">
@@ -66,31 +72,68 @@
     <div id="noResult" class="no-result" style="display: none;">❌ 검색 결과가 없습니다.</div>
 
     <script>
-        let csvData = [];
+        let csvData = [];          // 재고 데이터 저장 배열
+        let coordData = {};        // 보유처별 좌표 데이터 저장 객체 { '보유처명': {lat, lng} }
 
-window.onload = function() {
-    fetch('data.csv')
-        .then(response => response.arrayBuffer()) // 1. 파일을 깨지지 않는 바이너리 형태로 먼저 받음
-        .then(buffer => {
-            // 2. 디코더를 이용해 EUC-KR(한국어 엑셀 기본값)로 한글을 번역함
-            const decoder = new TextDecoder('euc-kr');
-            const text = decoder.decode(buffer);
-            parseCSV(text);
-        })
-        .catch(error => {
-            alert('data.csv 파일을 불러오는 데 실패했습니다.');
-            console.error(error);
-        });
-};
+        // 웹페이지가 실행되면 두 개의 파일을 순서대로 읽어옵니다.
+        window.onload = function() {
+            // 1. 먼저 coordinate.csv 파일 로드
+            fetch('coordinate.csv')
+                .then(response => response.arrayBuffer())
+                .then(buffer => {
+                    const decoder = new TextDecoder('euc-kr'); // 한글 깨짐 방지
+                    const text = decoder.decode(buffer);
+                    parseCoordinateCSV(text);
+                    
+                    // 2. 좌표 로드 완료 후 data.csv 파일 로드
+                    return fetch('data.csv');
+                })
+                .then(response => response.arrayBuffer())
+                .then(buffer => {
+                    const decoder = new TextDecoder('euc-kr');
+                    const text = decoder.decode(buffer);
+                    parseDataCSV(text);
+                })
+                .catch(error => {
+                    alert('데이터 파일(CSV)을 불러오는 중 오류가 발생했습니다. 파일명과 인코딩을 확인해주세요.');
+                    console.error(error);
+                });
+        };
 
-        // 3행 기준으로 CSV 파싱
-        function parseCSV(text) {
+        // 좌표(Coordinate) CSV 파싱 함수 (1행 헤더, 2행 데이터 시작 기준)
+        function parseCoordinateCSV(text) {
+            const lines = text.split(/\r?\n/);
+            if (lines.length < 1) return;
+
+            const selectEl = document.getElementById('baseLocation');
+
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                const cols = lines[i].split(',').map(c => c.trim());
+                
+                let locName = cols[0] || ''; // A열: 보유처(판매처)
+                let lat = parseFloat(cols[1]); // B열: 위도
+                let lng = parseFloat(cols[2]); // C열: 경도
+
+                if (locName && !isNaN(lat) && !isNaN(lng)) {
+                    coordData[locName] = { lat: lat, lng: lng };
+                    
+                    // 선택창(Dropdown)에 선택지 자동으로 추가하기
+                    let option = document.createElement('option');
+                    option.value = locName;
+                    option.textContent = locName;
+                    selectEl.appendChild(option);
+                }
+            }
+        }
+
+        // 재고 데이터 CSV 파싱 함수 (3행 헤더 기준)
+        function parseDataCSV(text) {
             const lines = text.split(/\r?\n/);
             if (lines.length < 3) return;
 
             for (let i = 3; i < lines.length; i++) {
                 if (!lines[i].trim()) continue;
-                
                 const cols = lines[i].split(',').map(c => c.trim());
                 
                 let manager = cols[5] || '';  // F열
@@ -109,8 +152,21 @@ window.onload = function() {
             }
         }
 
-        // 검색 기능 (일부 입력 / 단독 입력 / 빈칸 입력 대응)
+        // 두 좌표 간의 실제 거리(km)를 구하는 수학 공식 (하버사인 공식)
+        function getDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371; // 지구 반지름 (km)
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c; // 거리 반환 (km)
+        }
+
+        // 검색 및 거리 정렬 기능
         function searchData() {
+            const baseLoc = document.getElementById('baseLocation').value;
             const modelQuery = document.getElementById('modelSearch').value.toLowerCase().trim();
             const colorQuery = document.getElementById('colorSearch').value.toLowerCase().trim();
             
@@ -118,24 +174,50 @@ window.onload = function() {
             const container = document.getElementById('tableContainer');
             const noResult = document.getElementById('noResult');
             
-            tbody.innerHTML = ''; // 이전 결과 초기화
+            tbody.innerHTML = ''; 
 
-            const filtered = csvData.filter(row => {
-                // 입력창이 빈칸이면 무조건 참(True), 값이 있으면 포함(Includes) 여부 검사
+            // 내 위치 좌표 가져오기
+            const baseCoord = coordData[baseLoc];
+
+            // 1. 검색어 조건 필터링
+            let filtered = csvData.filter(row => {
                 const matchModel = modelQuery === '' || row['모델명'].toLowerCase().includes(modelQuery);
                 const matchColor = colorQuery === '' || row['색상'].toLowerCase().includes(colorQuery);
                 return matchModel && matchColor;
             });
 
+            // 2. 거리 계산 및 거리순 정렬
+            filtered.forEach(row => {
+                const targetCoord = coordData[row['보유처']];
+                if (baseCoord && targetCoord) {
+                    // 내 위치와 재고 보유처 간의 거리 계산
+                    row['거리'] = getDistance(baseCoord.lat, baseCoord.lng, targetCoord.lat, targetCoord.lng);
+                } else {
+                    row['거리'] = 99999; // 좌표 정보가 없는 경우 아주 먼 곳으로 처리
+                }
+            });
+
+            // 기준 보유처를 선택했을 때만 거리순 정렬 작동 (미선택 시 기본 순서)
+            if (baseLoc !== '') {
+                filtered.sort((a, b) => a['거리'] - b['거리']);
+            }
+
+            // 3. 결과 출력
             if (filtered.length > 0) {
                 filtered.forEach(row => {
                     const tr = document.createElement('tr');
+                    let distanceDisplay = '-';
+                    if (baseLoc !== '') {
+                        distanceDisplay = row['거리'] === 0 ? '★ 현재위치' : row['거리'].toFixed(1) + ' km';
+                    }
+                    
                     tr.innerHTML = `
                         <td>${row['영업담당']}</td>
                         <td>${row['보유처']}</td>
                         <td>${row['모델명']}</td>
                         <td>${row['색상']}</td>
                         <td>${row['일련번호']}</td>
+                        <td style="font-weight: bold; color: ${row['거리'] === 0 ? '#2ecc71' : '#e67e22'};">${distanceDisplay}</td>
                     `;
                     tbody.appendChild(tr);
                 });
@@ -147,13 +229,11 @@ window.onload = function() {
             }
         }
 
-        // 초기화 버튼 기능
+        // 초기화 함수
         function resetForm() {
-            // 1. 입력창 내용 지우기
+            document.getElementById('baseLocation').value = '';
             document.getElementById('modelSearch').value = '';
             document.getElementById('colorSearch').value = '';
-            
-            // 2. 출력된 화면 결과 모두 숨기기
             document.getElementById('resultBody').innerHTML = '';
             document.getElementById('tableContainer').style.display = 'none';
             document.getElementById('noResult').style.display = 'none';
