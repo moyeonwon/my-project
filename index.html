@@ -23,15 +23,26 @@
         .btn-reset { background-color: #95a5a6; }
         .btn-reset:hover { background-color: #7f8c8d; }
 
-        .table-container { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow: hidden; margin-top: 20px; }
-        table { width: 100%; border-collapse: collapse; text-align: left; }
+        /* 💡 1번 방법: 모바일 화면 대응 가로 스크롤 컨테이너 설정 */
+        .table-container { 
+            background: #fff; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); 
+            overflow: hidden; 
+            margin-top: 20px; 
+            overflow-x: auto; /* 가로 스크롤바 활성화 */
+            -webkit-overflow-scrolling: touch; /* 모바일 부드러운 스크롤 */
+        }
+        
+        /* 💡 데이터가 많아져도 모바일에서 뭉개지지 않도록 최소 가로 너비 강제 지정 */
+        table { width: 100%; border-collapse: collapse; text-align: left; min-width: 750px; }
+        
         th, td { padding: 14px 16px; border-bottom: 1px solid #edf2f7; font-size: 14px; }
         th { background-color: #f8fafc; color: #2c3e50; font-weight: bold; border-bottom: 2px solid #e2e8f0; }
         tr:hover { background-color: #f8fafc; }
         .no-result { margin-top: 25px; color: #e74c3c; font-weight: bold; text-align: center; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .info-text { font-size: 12px; color: #95a5a6; margin-top: -10px; margin-bottom: 20px; }
         
-        /* 시스템 연동 상태창 */
         .debug-box { background: #e8f8f5; border: 1px solid #a3e4d7; padding: 10px 15px; border-radius: 6px; font-size: 12px; color: #117a65; margin-bottom: 15px; line-height: 1.6; }
     </style>
 </head>
@@ -82,7 +93,7 @@
                     <th>모델명 (O)</th>
                     <th>색상 (R)</th>
                     <th>일련번호 (S)</th>
-                    <th>거리 (km)</th>
+                    <th>출고일 (AH)</th> <th>거리 (km)</th>
                 </tr>
             </thead>
             <tbody id="resultBody">
@@ -97,18 +108,16 @@
         let coordData = {};        
 
         window.onload = function() {
-            // 1. coordinate.csv 로드 (💡 한글 깨짐 방지 디코더 적용)
             fetch('coordinate.csv')
                 .then(response => {
                     if (!response.ok) throw new Error('coordinate.csv 파일을 찾을 수 없습니다.');
-                    return response.arrayBuffer(); // 깨지지 않는 바이너리 형태로 받기
+                    return response.arrayBuffer(); 
                 })
                 .then(buffer => {
-                    const decoder = new TextDecoder('utf-8'); // 💡 한국어 엑셀 기본값 디코더 선언
+                    const decoder = new TextDecoder('euc-kr'); 
                     const text = decoder.decode(buffer);
                     parseCoordinateCSV(text);
                     
-                    // 2. data.csv 로드
                     return fetch('data.csv');
                 })
                 .then(response => {
@@ -120,7 +129,6 @@
                     const text = decoder.decode(buffer);
                     parseDataCSV(text);
                     
-                    // 상태창 업데이트
                     const coordCount = Object.keys(coordData).length;
                     document.getElementById('debugBox').innerHTML = `✅ 데이터 연동 완료! (등록된 판매처 좌표: ${coordCount}곳 / 등록된 전체 재고: ${csvData.length}건)`;
                 })
@@ -133,7 +141,6 @@
                 });
         };
 
-        // 따옴표 및 쉼표 예외처리 분리 함수
         function splitCSVLine(line) {
             let result = [];
             let insideQuote = false;
@@ -153,7 +160,6 @@
             return result;
         }
 
-        // 1행 헤더, 2행 데이터 시작 파싱 로직 (i = 1부터 시작)
         function parseCoordinateCSV(text) {
             const lines = text.split(/\r?\n/);
             if (lines.length < 1) return;
@@ -162,9 +168,9 @@
                 if (!lines[i].trim()) continue;
                 const cols = splitCSVLine(lines[i]);
                 
-                let locName = cols[0] ? cols[0].replace(/"/g, '') : '';   // A열: 판매처명
-                let lat = parseFloat(cols[1]); // B열: 위도
-                let lng = parseFloat(cols[2]); // C열: 경도
+                let locName = cols[0] ? cols[0].replace(/"/g, '') : '';   
+                let lat = parseFloat(cols[1]); 
+                let lng = parseFloat(cols[2]); 
 
                 if (locName && !isNaN(lat) && !isNaN(lng)) {
                     coordData[locName] = { lat: lat, lng: lng };
@@ -173,13 +179,11 @@
             updateDropdown("");
         }
 
-        // 실시간 글자 감지 함수
         function filterDropdown() {
             const query = document.getElementById('baseLocationSearch').value.toLowerCase().trim();
             updateDropdown(query);
         }
 
-        // 드롭다운 보기 갱신 함수
         function updateDropdown(query) {
             const selectEl = document.getElementById('baseLocationSelect');
             selectEl.innerHTML = ''; 
@@ -211,7 +215,6 @@
             }
         }
 
-        // 재고 데이터 파싱 (3행 헤더, 4행 데이터 시작)
         function parseDataCSV(text) {
             const lines = text.split(/\r?\n/);
             if (lines.length < 3) return;
@@ -220,23 +223,24 @@
                 if (!lines[i].trim()) continue;
                 const cols = splitCSVLine(lines[i]);
                 
-                let manager = cols[5] || '';  // F
+                let manager = cols[5] || '';   // F
                 let location = cols[11] || ''; // L
                 let model = cols[14] || '';    // O
                 let color = cols[17] || '';    // R
                 let serial = cols[18] || '';   // S
+                let releaseDate = cols[33] || ''; // 💡 AH열 (엑셀의 34번째 열이므로 컴퓨터 인덱스로는 33입니다)
 
                 csvData.push({
                     '영업담당': manager,
                     '보유처': location,
                     '모델명': model,
                     '색상': color,
-                    '일련번호': serial
+                    '일련번호': serial,
+                    '출고일': releaseDate // 💡 출고일 객체 속성 추가
                 });
             }
         }
 
-        // 하버사인 직선거리 계산
         function getDistance(lat1, lng1, lat2, lng2) {
             const R = 6371; 
             const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -248,7 +252,6 @@
             return R * c; 
         }
 
-        // 최종 필터 검색 및 정렬 실행
         function searchData() {
             const baseLoc = document.getElementById('baseLocationSelect').value;
             const modelQuery = document.getElementById('modelSearch').value.toLowerCase().trim();
@@ -296,7 +299,7 @@
                         <td>${row['모델명']}</td>
                         <td>${row['색상']}</td>
                         <td>${row['일련번호']}</td>
-                        <td style="font-weight: bold; color: ${row['거리'] < 0.1 ? '#2ecc71' : (row['거리'] === 99999 ? '#95a5a6' : '#e67e22')};">${distanceDisplay}</td>
+                        <td>${row['출고일']}</td> <td style="font-weight: bold; color: ${row['거리'] < 0.1 ? '#2ecc71' : (row['거리'] === 99999 ? '#95a5a6' : '#e67e22')};">${distanceDisplay}</td>
                     `;
                     tbody.appendChild(tr);
                 });
@@ -308,7 +311,6 @@
             }
         }
 
-        // 전체 초기화
         function resetForm() {
             document.getElementById('baseLocationSearch').value = '';
             document.getElementById('modelSearch').value = '';
