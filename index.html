@@ -51,11 +51,11 @@
         <table id="resultTable">
             <thead>
                 <tr>
-                    <th>영업담당 (F)</th>
-                    <th>보유처 (L)</th>
-                    <th>모델명 (O)</th>
-                    <th>색상 (R)</th>
-                    <th>일련번호 (S)</th>
+                    <th>영업담당</th>
+                    <th>보유처</th>
+                    <th>모델명</th>
+                    <th>색상</th>
+                    <th>일련번호</th>
                 </tr>
             </thead>
             <tbody id="resultBody">
@@ -68,17 +68,20 @@
     <script>
         let csvData = [];
 
-        window.onload = function() {
-            fetch('data.csv')
-                .then(response => response.text())
-                .then(text => {
-                    parseCSV(text);
-                })
-                .catch(error => {
-                    alert('data.csv 파일을 불러오는 데 실패했습니다.');
-                    console.error(error);
-                });
-        };
+window.onload = function() {
+    fetch('data.csv')
+        .then(response => response.arrayBuffer()) // 1. 파일을 깨지지 않는 바이너리 형태로 먼저 받음
+        .then(buffer => {
+            // 2. 디코더를 이용해 EUC-KR(한국어 엑셀 기본값)로 한글을 번역함
+            const decoder = new TextDecoder('euc-kr');
+            const text = decoder.decode(buffer);
+            parseCSV(text);
+        })
+        .catch(error => {
+            alert('data.csv 파일을 불러오는 데 실패했습니다.');
+            console.error(error);
+        });
+};
 
         // 3행 기준으로 CSV 파싱
         function parseCSV(text) {
