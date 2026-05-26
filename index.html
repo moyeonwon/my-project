@@ -114,7 +114,7 @@
                     return response.arrayBuffer(); 
                 })
                 .then(buffer => {
-                    const decoder = new TextDecoder('euc-kr'); 
+                    const decoder = new TextDecoder('UTF-8'); 
                     const text = decoder.decode(buffer);
                     parseCoordinateCSV(text);
                     
