@@ -104,7 +104,7 @@
                     return response.arrayBuffer(); // 깨지지 않는 바이너리 형태로 받기
                 })
                 .then(buffer => {
-                    const decoder = new TextDecoder('euc-kr'); // 💡 한국어 엑셀 기본값 디코더 선언
+                    const decoder = new TextDecoder('utf-8'); // 💡 한국어 엑셀 기본값 디코더 선언
                     const text = decoder.decode(buffer);
                     parseCoordinateCSV(text);
                     
