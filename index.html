@@ -8,12 +8,18 @@
         body { font-family: 'Malgun Gothic', sans-serif; margin: 20px; background-color: #f4f6f9; color: #333; }
         h1 { color: #2c3e50; font-size: 24px; margin-bottom: 20px; }
         .search-box { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
-        .input-group { display: inline-block; margin-right: 15px; margin-bottom: 10px; }
-        label { display: block; font-size: 13px; color: #7f8c8d; margin-bottom: 5px; font-weight: bold; }
-        input { padding: 10px; width: 220px; border: 1px solid #ccd1d9; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
-        input:focus { border-color: #3498db; outline: none; }
         
-        button { padding: 10px 25px; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; transition: background 0.2s; margin-right: 5px; }
+        /* 한 줄씩 아래로 배치하기 위한 스타일 */
+        .search-row { margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 15px; }
+        .input-group { display: flex; flex-direction: column; }
+        
+        label { font-size: 13px; color: #7f8c8d; margin-bottom: 5px; font-weight: bold; }
+        input, select { padding: 10px; width: 220px; border: 1px solid #ccd1d9; border-radius: 6px; font-size: 14px; box-sizing: border-box; background-color: #fff; }
+        input:focus, select:focus { border-color: #3498db; outline: none; }
+        
+        /* 버튼 구역 스타일 */
+        .btn-group { margin-top: 20px; display: flex; gap: 10px; }
+        button { padding: 10px 30px; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; transition: background 0.2s; }
         .btn-search { background-color: #3498db; }
         .btn-search:hover { background-color: #2980b9; }
         .btn-reset { background-color: #95a5a6; }
@@ -31,23 +37,37 @@
 <body>
 
     <h1>🌐 실시간 위치 기준 재고 검색 시스템</h1>
-    <p class="info-text">* 내 위치(판매처)와 모델명, 색상을 각각 입력하여 검색할 수 있습니다.</p>
+    <p class="info-text">* 내 위치를 검색 후 드롭다운에서 선택하고, 아래에 모델명과 색상을 입력해 검색하세요.</p>
     
     <div class="search-box">
-        <div class="input-group">
-            <label for="baseLocationSearch">내 위치 검색 (판매처명)</label>
-            <input type="text" id="baseLocationSearch" placeholder="예: 서울창고, 강남점">
+        <div class="search-row">
+            <div class="input-group">
+                <label for="baseLocationSearch">① 내 위치 검색 (판매처명 입력)</label>
+                <input type="text" id="baseLocationSearch" oninput="filterDropdown()" placeholder="예: 서울, 강남">
+            </div>
+            <div class="input-group">
+                <label for="baseLocationSelect">② 특정 판매처 선택</label>
+                <select id="baseLocationSelect">
+                    <option value="">-- 판매처를 선택하세요 --</option>
+                </select>
+            </div>
         </div>
-        <div class="input-group">
-            <label for="modelSearch">모델명 (O열)</label>
-            <input type="text" id="modelSearch" placeholder="모델명 입력">
+
+        <div class="search-row">
+            <div class="input-group">
+                <label for="modelSearch">모델명 (O열)</label>
+                <input type="text" id="modelSearch" placeholder="모델명 입력">
+            </div>
+            <div class="input-group">
+                <label for="colorSearch">색상 (R열)</label>
+                <input type="text" id="colorSearch" placeholder="색상 입력">
+            </div>
         </div>
-        <div class="input-group">
-            <label for="colorSearch">색상 (R열)</label>
-            <input type="text" id="colorSearch" placeholder="색상 입력">
+
+        <div class="btn-group">
+            <button class="btn-search" onclick="searchData()">검색</button>
+            <button class="btn-reset" onclick="resetForm()">초기화</button>
         </div>
-        <button class="btn-search" onclick="searchData()">검색</button>
-        <button class="btn-reset" onclick="resetForm()">초기화</button>
     </div>
 
     <div class="table-container" id="tableContainer" style="display: none;">
@@ -70,11 +90,10 @@
     <div id="noResult" class="no-result" style="display: none;">❌ 검색 결과가 없습니다.</div>
 
     <script>
-        let csvData = [];          // 재고 데이터 저장 배열
-        let coordData = {};        // 판매처별 좌표 데이터 저장 객체 { '판매처명': {lat, lng} }
+        let csvData = [];          
+        let coordData = {};        
 
         window.onload = function() {
-            // 1. coordinate.csv 파일 로드 (1행 헤더, 2행 데이터 시작)
             fetch('coordinate.csv')
                 .then(response => response.arrayBuffer())
                 .then(buffer => {
@@ -82,7 +101,6 @@
                     const text = decoder.decode(buffer);
                     parseCoordinateCSV(text);
                     
-                    // 2. data.csv 파일 로드 (3행 헤더, 4행 데이터 시작)
                     return fetch('data.csv');
                 })
                 .then(response => response.arrayBuffer())
@@ -97,7 +115,6 @@
                 });
         };
 
-        // 좌표 CSV 파싱 (2번째 줄(i=1)부터 읽도록 세팅 완료)
         function parseCoordinateCSV(text) {
             const lines = text.split(/\r?\n/);
             if (lines.length < 1) return;
@@ -106,17 +123,39 @@
                 if (!lines[i].trim()) continue;
                 const cols = lines[i].split(',').map(c => c.trim());
                 
-                let locName = cols[0] || '';   // A열: 보유처(판매처)
-                let lat = parseFloat(cols[1]); // B열: 위도
-                let lng = parseFloat(cols[2]); // C열: 경도
+                let locName = cols[0] || '';   
+                let lat = parseFloat(cols[1]); 
+                let lng = parseFloat(cols[2]); 
 
                 if (locName && !isNaN(lat) && !isNaN(lng)) {
                     coordData[locName] = { lat: lat, lng: lng };
                 }
             }
+            // 처음에 전체 목록 채워두기
+            updateDropdown("");
         }
 
-        // 재고 CSV 파싱 (4번째 줄(i=3)부터 읽음)
+        // 💡 실시간으로 검색어 필터링해서 드롭다운 채워주는 함수
+        function filterDropdown() {
+            const query = document.getElementById('baseLocationSearch').value.toLowerCase().trim();
+            updateDropdown(query);
+        }
+
+        // 드롭다운 세부 목록 갱신
+        function updateDropdown(query) {
+            const selectEl = document.getElementById('baseLocationSelect');
+            selectEl.innerHTML = '<option value="">-- 판매처를 선택하세요 --</option>';
+
+            Object.keys(coordData).forEach(name => {
+                if (query === "" || name.toLowerCase().includes(query)) {
+                    let option = document.createElement('option');
+                    option.value = name;
+                    option.textContent = name;
+                    selectEl.appendChild(option);
+                }
+            });
+        }
+
         function parseDataCSV(text) {
             const lines = text.split(/\r?\n/);
             if (lines.length < 3) return;
@@ -141,7 +180,6 @@
             }
         }
 
-        // 하버사인 거리 계산 공식
         function getDistance(lat1, lng1, lat2, lng2) {
             const R = 6371; 
             const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -153,9 +191,8 @@
             return R * c; 
         }
 
-        // 검색 및 거리 정렬 기능
         function searchData() {
-            const baseQuery = document.getElementById('baseLocationSearch').value.toLowerCase().trim();
+            const baseLoc = document.getElementById('baseLocationSelect').value;
             const modelQuery = document.getElementById('modelSearch').value.toLowerCase().trim();
             const colorQuery = document.getElementById('colorSearch').value.toLowerCase().trim();
             
@@ -165,48 +202,33 @@
             
             tbody.innerHTML = ''; 
 
-            // 💡 입력한 글자가 포함된 실제 판매처명을 coordinate 데이터에서 매칭해 찾기
-            let exactBaseLocName = "";
-            let baseCoord = null;
+            const baseCoord = coordData[baseLoc];
 
-            if (baseQuery !== '') {
-                // coordinate.csv의 A열 명단 중 사용자가 입력한 글자가 포함된 첫 번째 판매처를 매칭
-                exactBaseLocName = Object.keys(coordData).find(name => name.toLowerCase().includes(baseQuery)) || "";
-                if (exactBaseLocName) {
-                    baseCoord = coordData[exactBaseLocName];
-                }
-            }
-
-            // 1. 재고 검색어 필터링 (모델명, 색상)
             let filtered = csvData.filter(row => {
                 const matchModel = modelQuery === '' || row['모델명'].toLowerCase().includes(modelQuery);
                 const matchColor = colorQuery === '' || row['색상'].toLowerCase().includes(colorQuery);
                 return matchModel && matchColor;
             });
 
-            // 2. 거리 계산
             filtered.forEach(row => {
                 const targetCoord = coordData[row['보유처']];
                 if (baseCoord && targetCoord) {
                     row['거리'] = getDistance(baseCoord.lat, baseCoord.lng, targetCoord.lat, targetCoord.lng);
                 } else {
-                    row['거리'] = 99999; // 기준 위치가 없거나 좌표가 없으면 뒤로 밀어냄
+                    row['거리'] = 99999; 
                 }
             });
 
-            // 기준 위치가 정확히 매칭되었을 때만 거리순 정렬 작동
             if (baseCoord) {
                 filtered.sort((a, b) => a['거리'] - b['거리']);
             }
 
-            // 3. 화면 출력
             if (filtered.length > 0) {
                 filtered.forEach(row => {
                     const tr = document.createElement('tr');
                     let distanceDisplay = '-';
                     
                     if (baseCoord) {
-                        // 소수점 첫째 자리까지 표기, 본인 위치는 0km로 표기
                         distanceDisplay = row['거리'] < 0.1 ? '★ 내 위치' : row['거리'].toFixed(1) + ' km';
                     }
                     
@@ -228,11 +250,11 @@
             }
         }
 
-        // 초기화 함수
         function resetForm() {
             document.getElementById('baseLocationSearch').value = '';
             document.getElementById('modelSearch').value = '';
             document.getElementById('colorSearch').value = '';
+            updateDropdown(""); // 드롭다운 전체 초기화
             document.getElementById('resultBody').innerHTML = '';
             document.getElementById('tableContainer').style.display = 'none';
             document.getElementById('noResult').style.display = 'none';
