@@ -107,7 +107,7 @@
     <script>
         let csvData = [];          
         let coordData = {};        
-        let allColorSet = new Set(); // 전체 색상을 기억해둘 저장소
+        let allColorSet = new Set(); 
 
         window.onload = function() {
             fetch('coordinate.csv')
@@ -131,7 +131,6 @@
                     const text = decoder.decode(buffer);
                     parseDataCSV(text);
                     
-                    // 초기 상태: 모델명이 비어있으므로 전체 색상 노출
                     updateColorDropdown("");
                     
                     const coordCount = Object.keys(coordData).length;
@@ -235,6 +234,12 @@
                 let serial = cols[18] || '';   
                 let releaseDate = cols[33] || ''; 
 
+                // 💡 [핵심 추가] 모델명 내부에 'so' 또는 'SO'가 있다면 공백으로 치환하여 제거합니다.
+                // 정규식 /so/gi 구문을 사용하여 대소문자 구분 없이 모든 'so'를 찾아 지웁니다.
+                if (model) {
+                    model = model.replace(/so/gi, '');
+                }
+
                 if (color.trim() !== "") {
                     allColorSet.add(color.trim());
                 }
@@ -250,28 +255,21 @@
             }
         }
 
-        // 💡 모델명 입력창 타이핑을 감지하여 색상 드롭다운을 갱신하는 함수
         function filterColorDropdown() {
             const modelQuery = document.getElementById('modelSearch').value.toLowerCase().trim();
             updateColorDropdown(modelQuery);
         }
 
-        // 💡 실시간 입력 모델 기반 색상 렌더링 시스템 
         function updateColorDropdown(modelQuery) {
             const colorSelect = document.getElementById('colorSearch');
-            
-            // 기존 선택상태 초기화를 방지하기 위해 현재 선택값 임시 저장
             const previousSelectedValue = colorSelect.value;
             
             colorSelect.innerHTML = '<option value="">-- 전체 --</option>';
-            
             let filteredColors = new Set();
 
             if (modelQuery === "") {
-                // 모델명 입력이 없으면 모든 색상 적용
                 filteredColors = allColorSet;
             } else {
-                // 입력된 모델명이 포함된 재고 데이터의 색상만 수집
                 csvData.forEach(row => {
                     if (row['모델명'].toLowerCase().includes(modelQuery) && row['색상'].trim() !== "") {
                         filteredColors.add(row['색상'].trim());
@@ -279,14 +277,12 @@
                 });
             }
 
-            // 가나다순 정렬 후 옵션 추가
             const sortedColors = Array.from(filteredColors).sort();
             sortedColors.forEach(color => {
                 const option = document.createElement('option');
                 option.value = color;
                 option.textContent = color;
                 
-                // 만약 이전에 고른 색상이 새 리스트에도 존재한다면 선택상태 유지
                 if (color === previousSelectedValue) {
                     option.selected = true;
                 }
@@ -369,7 +365,7 @@
             document.getElementById('baseLocationSearch').value = '';
             document.getElementById('modelSearch').value = '';
             updateDropdown(""); 
-            updateColorDropdown(""); // 색상 드롭다운도 전체 목록으로 리셋
+            updateColorDropdown(""); 
             document.getElementById('resultBody').innerHTML = '';
             document.getElementById('tableContainer').style.display = 'none';
             document.getElementById('noResult').style.display = 'none';
