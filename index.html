@@ -23,18 +23,16 @@
         .btn-reset { background-color: #95a5a6; }
         .btn-reset:hover { background-color: #7f8c8d; }
 
-        /* 💡 1번 방법: 모바일 화면 대응 가로 스크롤 컨테이너 설정 */
         .table-container { 
             background: #fff; 
             border-radius: 8px; 
             box-shadow: 0 2px 8px rgba(0,0,0,0.05); 
             overflow: hidden; 
             margin-top: 20px; 
-            overflow-x: auto; /* 가로 스크롤바 활성화 */
-            -webkit-overflow-scrolling: touch; /* 모바일 부드러운 스크롤 */
+            overflow-x: auto; 
+            -webkit-overflow-scrolling: touch; 
         }
         
-        /* 💡 데이터가 많아져도 모바일에서 뭉개지지 않도록 최소 가로 너비 강제 지정 */
         table { width: 100%; border-collapse: collapse; text-align: left; min-width: 750px; }
         
         th, td { padding: 14px 16px; border-bottom: 1px solid #edf2f7; font-size: 14px; }
@@ -70,7 +68,7 @@
         <div class="search-row">
             <div class="input-group">
                 <label for="modelSearch">모델명</label>
-                <input type="text" id="modelSearch" placeholder="모델명 입력">
+                <input type="text" id="modelSearch" oninput="filterColorDropdown()" placeholder="모델명 입력">
             </div>
             <div class="input-group">
                 <label for="colorSearch">색상</label>
@@ -109,7 +107,7 @@
     <script>
         let csvData = [];          
         let coordData = {};        
-        let colorSet = new Set(); // 💡 중복 없이 색상 종류를 보관할 저장소 추가
+        let allColorSet = new Set(); // 전체 색상을 기억해둘 저장소
 
         window.onload = function() {
             fetch('coordinate.csv')
@@ -133,8 +131,8 @@
                     const text = decoder.decode(buffer);
                     parseDataCSV(text);
                     
-                    // 💡 실시간 수집된 색상을 드롭다운 메뉴에 주입 및 정렬
-                    populateColorDropdown();
+                    // 초기 상태: 모델명이 비어있으므로 전체 색상 노출
+                    updateColorDropdown("");
                     
                     const coordCount = Object.keys(coordData).length;
                     document.getElementById('debugBox').innerHTML = `✅ 데이터 연동 완료! (등록된 판매처 좌표: ${coordCount}곳 / 등록된 전체 재고: ${csvData.length}건)`;
@@ -230,16 +228,15 @@
                 if (!lines[i].trim()) continue;
                 const cols = splitCSVLine(lines[i]);
                 
-                let manager = cols[5] || '';   // F
-                let location = cols[11] || ''; // L
-                let model = cols[14] || '';    // O
-                let color = cols[17] || '';    // R
-                let serial = cols[18] || '';   // S
-                let releaseDate = cols[33] || ''; // AH열
+                let manager = cols[5] || '';   
+                let location = cols[11] || ''; 
+                let model = cols[14] || '';    
+                let color = cols[17] || '';    
+                let serial = cols[18] || '';   
+                let releaseDate = cols[33] || ''; 
 
-                // 💡 만약 데이터에 색상이 명시되어 있다면 데이터베이스 저장 목록에 등록
                 if (color.trim() !== "") {
-                    colorSet.add(color.trim());
+                    allColorSet.add(color.trim());
                 }
 
                 csvData.push({
@@ -253,17 +250,47 @@
             }
         }
 
-        // 💡 실시간으로 수집된 유일한 색상들을 드롭다운 선택 메뉴로 생성해주는 함수
-        function populateColorDropdown() {
+        // 💡 모델명 입력창 타이핑을 감지하여 색상 드롭다운을 갱신하는 함수
+        function filterColorDropdown() {
+            const modelQuery = document.getElementById('modelSearch').value.toLowerCase().trim();
+            updateColorDropdown(modelQuery);
+        }
+
+        // 💡 실시간 입력 모델 기반 색상 렌더링 시스템 
+        function updateColorDropdown(modelQuery) {
             const colorSelect = document.getElementById('colorSearch');
             
-            // 기존 선택 옵션을 유지하되 가나다 정렬 후 배치
-            const sortedColors = Array.from(colorSet).sort();
+            // 기존 선택상태 초기화를 방지하기 위해 현재 선택값 임시 저장
+            const previousSelectedValue = colorSelect.value;
             
+            colorSelect.innerHTML = '<option value="">-- 전체 --</option>';
+            
+            let filteredColors = new Set();
+
+            if (modelQuery === "") {
+                // 모델명 입력이 없으면 모든 색상 적용
+                filteredColors = allColorSet;
+            } else {
+                // 입력된 모델명이 포함된 재고 데이터의 색상만 수집
+                csvData.forEach(row => {
+                    if (row['모델명'].toLowerCase().includes(modelQuery) && row['색상'].trim() !== "") {
+                        filteredColors.add(row['색상'].trim());
+                    }
+                });
+            }
+
+            // 가나다순 정렬 후 옵션 추가
+            const sortedColors = Array.from(filteredColors).sort();
             sortedColors.forEach(color => {
                 const option = document.createElement('option');
                 option.value = color;
                 option.textContent = color;
+                
+                // 만약 이전에 고른 색상이 새 리스트에도 존재한다면 선택상태 유지
+                if (color === previousSelectedValue) {
+                    option.selected = true;
+                }
+                
                 colorSelect.appendChild(option);
             });
         }
@@ -282,7 +309,7 @@
         function searchData() {
             const baseLoc = document.getElementById('baseLocationSelect').value;
             const modelQuery = document.getElementById('modelSearch').value.toLowerCase().trim();
-            const colorQuery = document.getElementById('colorSearch').value.toLowerCase().trim(); // 💡 드롭다운 값 읽기
+            const colorQuery = document.getElementById('colorSearch').value.toLowerCase().trim(); 
             
             const tbody = document.getElementById('resultBody');
             const container = document.getElementById('tableContainer');
@@ -341,8 +368,8 @@
         function resetForm() {
             document.getElementById('baseLocationSearch').value = '';
             document.getElementById('modelSearch').value = '';
-            document.getElementById('colorSearch').value = ''; // 드롭다운 첫 번째 요소(-- 전체 --)로 초기화
             updateDropdown(""); 
+            updateColorDropdown(""); // 색상 드롭다운도 전체 목록으로 리셋
             document.getElementById('resultBody').innerHTML = '';
             document.getElementById('tableContainer').style.display = 'none';
             document.getElementById('noResult').style.display = 'none';
