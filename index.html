@@ -21,7 +21,7 @@
         
         /* 모든 버튼크기 및 사이즈 */
         button { 
-            width: 100px;
+            width: 120px;
             padding: 12px 0; 
             color: white; 
             border: none; 
@@ -214,7 +214,7 @@
             debugEl.style.backgroundColor = '#e8f8f5';
             debugEl.style.borderColor = '#a3e4d7';
             debugEl.style.color = '#117a65';
-            debugEl.innerHTML = `✅ 데이터 연동 완료! (등록된 판매처 좌표: ${coordCount}곳 / 등록된 전체 재고: ${csvData.length}건)<br>📅 <b>재고 리스트 업로드 일시:</b> ${dataFileModifiedTime}`;
+            debugEl.innerHTML = `✅ 데이터 연동 완료! (등록된 판매처: ${coordCount}곳 / 등록된 재고: ${csvData.length}건)<br>📅 <b>재고 리스트 업로드 일시:</b> ${dataFileModifiedTime}`;
         }
 
         function showErrorStatus(message) {
