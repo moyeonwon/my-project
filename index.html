@@ -16,10 +16,10 @@
         input, select { padding: 10px; width: 220px; border: 1px solid #ccd1d9; border-radius: 6px; font-size: 14px; box-sizing: border-box; background-color: #fff; }
         input:focus, select:focus { border-color: #3498db; outline: none; }
         
-        /* 버튼 그룹 레이아웃 조절 */
+        /* 버튼 그룹 레이아웃 */
         .btn-group { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; }
         
-        /* 모든 버튼크기 및 사이즈 */
+        /* 기본 PC 스타일 (원래 설정하신 120px 크기) */
         button { 
             width: 120px;
             padding: 12px 0; 
@@ -39,6 +39,24 @@
         .btn-reset:hover { background-color: #7f8c8d; }
         .btn-upload { background-color: #2ecc71; }
         .btn-upload:hover { background-color: #27ae60; }
+
+        /* ✨ 변경 포인트: 모바일 환경(스마트폰 화면 폭) 대응 미디어 쿼리 */
+        @media screen and (max-width: 480px) {
+            .btn-group { 
+                flex-wrap: nowrap; /* 모바일에서 절대 줄바꿈 되지 않도록 설정 */
+                gap: 5px;          /* 버튼 사이 간격을 좁게 변경 */
+            }
+            button { 
+                width: 33.33%;     /* 세 버튼이 정확히 3등분하여 화면을 꽉 채우도록 설정 */
+                padding: 10px 0;   /* 위아래 여백을 살짝 줄임 */
+                font-size: 11px;   /* "재고 CSV 업로드" 문구가 한 줄에 나오도록 글씨 크기 축소 */
+                letter-spacing: -0.5px; /* 글자 자간을 좁혀서 가독성 확보 */
+            }
+            
+            /* 입력창들도 모바일 화면 너비에 맞춰 꽉 차게 변경 */
+            input, select { width: 100%; }
+            .search-row { gap: 10px; }
+        }
 
         .table-container { 
             background: #fff; 
@@ -138,7 +156,6 @@
         let allColorSet = new Set(); 
         let dataFileModifiedTime = "확인 불가"; 
 
-        // 최초 실행 시 서버에서 기본 데이터 로드
         window.onload = function() {
             fetch('coordinate.csv')
                 .then(response => {
@@ -173,7 +190,6 @@
                 });
         };
 
-        // 자동 인코딩 분석 (한글 깨짐 해결)
         function decodeBufferAuto(buffer) {
             const bytes = new Uint8Array(buffer);
             let isUTF8 = true;
