@@ -38,6 +38,15 @@
         th, td { padding: 14px 16px; border-bottom: 1px solid #edf2f7; font-size: 14px; }
         th { background-color: #f8fafc; color: #2c3e50; font-weight: bold; border-bottom: 2px solid #e2e8f0; }
         tr:hover { background-color: #f8fafc; }
+        
+        /* 🎨 상태별 행 배경색 스타일 */
+        tr.row-warning { background-color: #fdedec !important; } /* 불량/분실: 연한 빨강 */
+        tr.row-warning:hover { background-color: #fadbd8 !important; }
+        tr.row-demo { background-color: #fef9e7 !important; }    /* 시연재고: 연한 노랑 */
+        tr.row-demo:hover { background-color: #fcf3cf !important; }
+        tr.row-opened { background-color: #f2f4f4 !important; } /* 개봉: 연한 회색 */
+        tr.row-opened:hover { background-color: #e5e8e8 !important; }
+        
         .no-result { margin-top: 25px; color: #e74c3c; font-weight: bold; text-align: center; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .info-text { font-size: 12px; color: #95a5a6; margin-top: -10px; margin-bottom: 20px; }
         
@@ -95,6 +104,7 @@
                     <th>일련번호</th>
                     <th>출고일</th> 
                     <th>거리 (km)</th>
+                    <th>상태 (비고)</th>
                 </tr>
             </thead>
             <tbody id="resultBody">
@@ -147,7 +157,6 @@
                     updateColorDropdown("");
                     
                     const coordCount = Object.keys(coordData).length;
-                    // 💡 [수정 완료] 'data.csv' 파일명 텍스트를 제거하고 출력하도록 변경했습니다.
                     document.getElementById('debugBox').innerHTML = `✅ 데이터 연동 완료! (등록된 판매처 좌표: ${coordCount}곳 / 등록된 전체 재고: ${csvData.length}건)<br>📅 <b>최신 업로드 일시:</b> ${dataFileModifiedTime}`;
                 })
                 .catch(error => {
@@ -247,6 +256,11 @@
                 let color = cols[17] || '';    
                 let serial = cols[18] || '';   
                 let releaseDate = cols[33] || ''; 
+                
+                let tColData = cols[19] || '';  
+                let status = cols[21] || '';    
+                let demoStock = cols[35] || ''; 
+                let openedStock = cols[36] || ''; /* 💡 AK열 개봉 데이터 파싱 */
 
                 if (model) {
                     model = model.replace(/so/gi, '');
@@ -262,7 +276,11 @@
                     '모델명': model,
                     '색상': color,
                     '일련번호': serial,
-                    '출고일': releaseDate 
+                    '출고일': releaseDate,
+                    'T열': tColData,      
+                    '상태': status,       
+                    '시연재고': demoStock,  
+                    '개봉여부': openedStock  // 추가
                 });
             }
         }
@@ -355,13 +373,52 @@
                         distanceDisplay = row['거리'] < 0.1 ? '★ 내 위치' : row['거리'].toFixed(1) + ' km';
                     }
                     
+                    // 💡 조건 판별 로직 (불량분실 / 시연 / 개봉)
+                    let isWarning = row['상태'] && row['상태'] !== '정상' && (row['상태'].includes('불량') || row['상태'].includes('분실'));
+                    let isDemo = row['시연재고'] && (row['시연재고'].includes('시연'));
+                    let isOpened = row['개봉여부'] && (row['개봉여부'].includes('개봉'));
+                    
+                    let remarkText = [];
+                    
+                    // 🎨 우선순위에 따라 행 색상 입히기 클래스 추가
+                    if (isWarning) {
+                        tr.classList.add('row-warning'); // 빨간색
+                        remarkText.push(`⚠️ [${row['상태']}]`);
+                    } else if (isDemo) {
+                        tr.classList.add('row-demo');    // 노란색
+                    } else if (isOpened) {
+                        tr.classList.add('row-opened');  // 회색
+                    }
+                    
+                    if (isDemo) {
+                        remarkText.push(`📱 [시연재고]`);
+                    }
+                    
+                    if (isOpened) {
+                        remarkText.push(`📦 [개봉]`);
+                    }
+                    
+                    if (row['T열']) {
+                        remarkText.push(`(${row['T열']})`);
+                    }
+
+                    let finalRemark = remarkText.join(' ') || '정상';
+                    
+                    // 💡 상태 문구 컬러 설정
+                    let remarkColor = '#2c3e50';
+                    if (isWarning) remarkColor = '#e74c3c';
+                    else if (isDemo) remarkColor = '#d35400';
+                    else if (isOpened) remarkColor = '#7f8c8d';
+                    
                     tr.innerHTML = `
                         <td>${row['영업담당']}</td>
                         <td>${row['보유처']}</td>
                         <td>${row['모델명']}</td>
                         <td>${row['색상']}</td>
                         <td>${row['일련번호']}</td>
-                        <td>${row['출고일']}</td> <td style="font-weight: bold; color: ${row['거리'] < 0.1 ? '#2ecc71' : (row['거리'] === 99999 ? '#95a5a6' : '#e67e22')};">${distanceDisplay}</td>
+                        <td>${row['출고일']}</td> 
+                        <td style="font-weight: bold; color: ${row['거리'] < 0.1 ? '#2ecc71' : (row['거리'] === 99999 ? '#95a5a6' : '#e67e22')};">${distanceDisplay}</td>
+                        <td style="font-weight: bold; color: ${remarkColor};">${finalRemark}</td>
                     `;
                     tbody.appendChild(tr);
                 });
