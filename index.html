@@ -132,7 +132,6 @@
                     return response.arrayBuffer(); 
                 })
                 .then(buffer => {
-                    // 좌표 파일 디코딩 (자동 인식 적용)
                     const text = decodeBufferAuto(buffer);
                     parseCoordinateCSV(text);
                     
@@ -141,6 +140,7 @@
                 .then(response => {
                     if (!response.ok) throw new Error('data.csv 파일을 찾을 수 없습니다.');
                     
+                    // coordinate.csv 파일 수정일은 철저히 무시하고, 오직 data.csv 파일 시간만 기록
                     const lastModified = response.headers.get('Last-Modified');
                     if (lastModified) {
                         dataFileModifiedTime = formatDate(new Date(lastModified));
@@ -149,7 +149,6 @@
                     return response.arrayBuffer();
                 })
                 .then(buffer => {
-                    // 기본 재고 파일 디코딩 (자동 인식 적용)
                     const text = decodeBufferAuto(buffer);
                     parseDataCSV(text);
                     
@@ -161,13 +160,12 @@
                 });
         };
 
-        // ✨ 핵심 추가: UTF-8과 EUC-KR을 자동 분석하여 깨지지 않게 텍스트로 변환하는 함수
+        // 자동 인코딩 분석 (한글 깨짐 해결)
         function decodeBufferAuto(buffer) {
             const bytes = new Uint8Array(buffer);
             let isUTF8 = true;
             let i = 0;
             
-            // UTF-8 바이트 패턴 판별을 위한 검사 로직
             while (i < bytes.length) {
                 if (bytes[i] <= 0x7F) {
                     i += 1;
@@ -183,7 +181,6 @@
                 }
             }
 
-            // 판별된 인코딩으로 변환기 설정
             const encoding = isUTF8 ? 'utf-8' : 'euc-kr';
             const decoder = new TextDecoder(encoding);
             return decoder.decode(buffer);
@@ -198,13 +195,14 @@
             return `${yyyy}년 ${mm}월 ${dd}일 ${hh}시 ${min}분`;
         }
 
+        // ✨ 변경 포인트: 다른 부가 설명 문구를 다 지우고, 깔끔하게 data.csv 파일의 수정/업로드 시간만 출력
         function updateDebugStatus() {
             const coordCount = Object.keys(coordData).length;
             const debugEl = document.getElementById('debugBox');
             debugEl.style.backgroundColor = '#e8f8f5';
             debugEl.style.borderColor = '#a3e4d7';
             debugEl.style.color = '#117a65';
-            debugEl.innerHTML = `✅ 데이터 연동 완료! (등록된 판매처 좌표: ${coordCount}곳 / 등록된 전체 재고: ${csvData.length}건)<br>📅 <b>최신 업로드 일시:</b> ${dataFileModifiedTime}`;
+            debugEl.innerHTML = `✅ 데이터 연동 완료! (등록된 판매처 좌표: ${coordCount}곳 / 등록된 전체 재고: ${csvData.length}건)<br>📅 <b>data.csv 업로드 일시:</b> ${dataFileModifiedTime}`;
         }
 
         function showErrorStatus(message) {
@@ -219,7 +217,7 @@
             document.getElementById('csvFileInput').click();
         }
 
-        // 파일 업로드 시 파일명 상관없이 강제 주입 + 자동 인코딩 적용
+        // 파일 업로드 시 data.csv 시간 정보 갱신
         function handleFileUpload(input) {
             if (input.files.length === 0) return;
 
@@ -228,8 +226,6 @@
 
             reader.onload = function(e) {
                 const buffer = e.target.result;
-                
-                // 자동 인코딩 분석 후 텍스트 변환
                 const text = decodeBufferAuto(buffer);
                 
                 csvData = []; 
@@ -237,13 +233,13 @@
                 
                 parseDataCSV(text);
                 
-                let fileTime = file.lastModified ? formatDate(new Date(file.lastModified)) : "확인 불가";
-                dataFileModifiedTime = `${fileTime} (파일명: ${file.name} ➡️ 재고 데이터 적용 완료)`;
+                // ✨ 변경 포인트: 사용자가 어떤 이름의 파일을 가져왔든 간에, 업로드된 최종 본체의 수정 날짜만 딱 추출하여 깔끔하게 세팅합니다.
+                dataFileModifiedTime = file.lastModified ? formatDate(new Date(file.lastModified)) : "확인 불가";
                 
                 updateColorDropdown("");
                 updateDebugStatus();
                 
-                alert(`'${file.name}' 데이터가 성공적으로 반영되었습니다.`);
+                alert(`재고 데이터(data.csv)가 성공적으로 업데이트되었습니다.`);
                 resetForm(); 
                 input.value = ""; 
             };
