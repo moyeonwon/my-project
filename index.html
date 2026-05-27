@@ -9,6 +9,7 @@
         h1 { color: #2c3e50; font-size: 24px; margin-bottom: 20px; }
         .search-box { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
         
+        /* 기본 PC 레이아웃 */
         .search-row { margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 15px; }
         .input-group { display: flex; flex-direction: column; }
         
@@ -16,8 +17,10 @@
         input, select { padding: 10px; width: 220px; border: 1px solid #ccd1d9; border-radius: 6px; font-size: 14px; box-sizing: border-box; background-color: #fff; }
         input:focus, select:focus { border-color: #3498db; outline: none; }
         
+        /* 버튼 그룹 레이아웃 */
         .btn-group { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; }
         
+        /* PC 버튼 크기 (120px 고정) */
         button { 
             width: 120px;
             padding: 12px 0; 
@@ -38,30 +41,32 @@
         .btn-upload { background-color: #2ecc71; }
         .btn-upload:hover { background-color: #27ae60; }
 
-        /* 모바일 반응형 스타일 */
+        /* ✨ 변경 포인트: 모바일 환경 반응형 스타일 */
         @media screen and (max-width: 480px) {
+            /* 1. 입력창 영역 한 줄 정렬 설정 */
             .search-row { 
                 display: flex;
-                flex-wrap: nowrap; 
-                gap: 8px;          
+                flex-wrap: nowrap; /* 줄바꿈 방지 */
+                gap: 8px;          /* 좌우 간격 축소 */
                 margin-bottom: 10px;
             }
             .input-group { 
-                flex: 1;           
-                min-width: 0;      
+                flex: 1;           /* 반반씩 균등하게 너비 배분 */
+                min-width: 0;      /* flex 아이템 자름 방지 */
             }
             input, select { 
-                width: 100%;       
-                padding: 10px 5px; 
+                width: 100%;       /* 할당된 너비에 꽉 차게 */
+                padding: 10px 5px; /* 모바일 대응 내부 여백 조절 */
                 font-size: 13px; 
             }
             label { 
-                font-size: 11px;   
+                font-size: 11px;   /* 라벨 글자 크기 축소 */
                 white-space: nowrap; 
                 overflow: hidden;
-                text-overflow: ellipsis; 
+                text-overflow: ellipsis; /* 글자가 너무 길면 ... 처리 */
             }
 
+            /* 2. 버튼 영역 한 줄 정렬 설정 */
             .btn-group { 
                 flex-wrap: nowrap; 
                 gap: 5px;          
@@ -106,9 +111,10 @@
     <h1>📱 위치 기준 재고 검색 시스템</h1>
     <p class="info-text">* 대용량 실시간 재고 파일 업로드 부탁드립니다.</p>
     
-    <div class="debug-box" id="debugBox">✅ 데이터 연동 완료! (등록된 판매처: 0곳 / 등록된 재고: 0건)<br>📅 <b>재고 리스트 실제 수정 일시:</b> 대기 중</div>
+    <div class="debug-box" id="debugBox">⏳ CSV 데이터를 불러오는 중입니다...</div>
 
     <div class="search-box">
+        <!-- 첫 번째 행: 위치 검색 & 선택 -->
         <div class="search-row">
             <div class="input-group">
                 <label for="baseLocationSearch">① 내 위치 검색</label>
@@ -122,6 +128,7 @@
             </div>
         </div>
 
+        <!-- 두 번째 행: 모델명 & 색상 -->
         <div class="search-row">
             <div class="input-group">
                 <label for="modelSearch">모델명</label>
@@ -170,11 +177,9 @@
         let csvData = [];          
         let coordData = {};        
         let allColorSet = new Set(); 
-        let dataFileModifiedTime = "대기 중"; 
+        let dataFileModifiedTime = "확인 불가"; 
 
-        // ✨ 변경: 페이지 로드 시 coordinate.csv와 함께 LocalStorage에 저장된 기존 재고 데이터도 가져옵니다.
         window.onload = function() {
-            // 1. 위치 데이터 불러오기
             fetch('coordinate.csv')
                 .then(response => {
                     if (!response.ok) throw new Error('coordinate.csv 파일을 찾을 수 없습니다.');
@@ -184,34 +189,29 @@
                     const text = decodeBufferAuto(buffer);
                     parseCoordinateCSV(text);
                     
-                    // 2. LocalStorage에서 기존 저장된 데이터가 있다면 불러오기
-                    loadSavedData();
+                    return fetch('data.csv');
+                })
+                .then(response => {
+                    if (!response.ok) throw new Error('data.csv 파일을 찾을 수 없습니다.');
+                    
+                    const lastModified = response.headers.get('Last-Modified');
+                    if (lastModified) {
+                        dataFileModifiedTime = formatDate(new Date(lastModified));
+                    }
+                    
+                    return response.arrayBuffer();
+                })
+                .then(buffer => {
+                    const text = decodeBufferAuto(buffer);
+                    parseDataCSV(text);
+                    
+                    updateColorDropdown("");
+                    updateDebugStatus(); 
                 })
                 .catch(error => {
-                    console.error("위치 데이터 로드 실패:", error.message);
+                    showErrorStatus(`기본 재고 로드 실패 (새로운 CSV 파일을 직접 업로드해 주세요): ${error.message}`);
                 });
         };
-
-        // ✨ 추가: 브라우저 저장소에서 데이터 로드하기
-        function loadSavedData() {
-            const savedTime = localStorage.getItem('stock_file_time');
-            const savedCsvData = localStorage.getItem('stock_csv_data');
-            const savedColors = localStorage.getItem('stock_color_set');
-
-            if (savedTime && savedCsvData) {
-                dataFileModifiedTime = savedTime;
-                csvData = JSON.parse(savedCsvData);
-                
-                if (savedColors) {
-                    const colorArray = JSON.parse(savedColors);
-                    allColorSet = new Set(colorArray);
-                }
-                
-                updateColorDropdown("");
-                updateDebugStatus();
-                console.log("브라우저 저장소로부터 기존 데이터를 성공적으로 복원했습니다.");
-            }
-        }
 
         function decodeBufferAuto(buffer) {
             const bytes = new Uint8Array(buffer);
@@ -250,7 +250,18 @@
         function updateDebugStatus() {
             const coordCount = Object.keys(coordData).length;
             const debugEl = document.getElementById('debugBox');
-            debugEl.innerHTML = `✅ 데이터 연동 완료! (등록된 판매처: ${coordCount}곳 / 등록된 재고: ${csvData.length}건)<br>📅 <b>재고 리스트 실제 수정 일시:</b> ${dataFileModifiedTime}`;
+            debugEl.style.backgroundColor = '#e8f8f5';
+            debugEl.style.borderColor = '#a3e4d7';
+            debugEl.style.color = '#117a65';
+            debugEl.innerHTML = `✅ 데이터 연동 완료! (등록된 판매처: ${coordCount}곳 / 등록된 재고: ${csvData.length}건)<br>📅 <b>재고 리스트 업로드 일시:</b> ${dataFileModifiedTime}`;
+        }
+
+        function showErrorStatus(message) {
+            const debugEl = document.getElementById('debugBox');
+            debugEl.style.backgroundColor = '#fdedec';
+            debugEl.style.borderColor = '#f5b7b1';
+            debugEl.style.color = '#78281f';
+            debugEl.innerHTML = `⚠️ 안내: ${message}`;
         }
 
         function triggerFileInput() {
@@ -272,32 +283,13 @@
                 
                 parseDataCSV(text);
                 
-                // 파일 자체의 수정 시간 추출
-                dataFileModifiedTime = file.lastModified ? formatDate(new Date(file.lastModified)) : formatDate(new Date());
+                dataFileModifiedTime = file.lastModified ? formatDate(new Date(file.lastModified)) : "확인 불가";
                 
-                // ✨ 변경: 업로드 성공 직후 브라우저 저장소(LocalStorage)에 데이터 백업
-                try {
-                    localStorage.setItem('stock_file_time', dataFileModifiedTime);
-                    localStorage.setItem('stock_csv_data', JSON.stringify(csvData));
-                    localStorage.setItem('stock_color_set', JSON.stringify(Array.from(allColorSet)));
-                } catch (e) {
-                    console.error("데이터 용량이 너무 커 LocalStorage 저장에 실패했습니다. (새로고침 시 재업로드 필요)", e);
-                }
-
                 updateColorDropdown("");
                 updateDebugStatus(); 
                 
                 alert(`재고 데이터가 성공적으로 업데이트되었습니다.`);
-                
-                // 입력폼 요소만 깔끔하게 초기화
-                document.getElementById('baseLocationSearch').value = '';
-                document.getElementById('modelSearch').value = '';
-                updateDropdown(""); 
-                updateColorDropdown(""); 
-                document.getElementById('resultBody').innerHTML = '';
-                document.getElementById('tableContainer').style.display = 'none';
-                document.getElementById('noResult').style.display = 'none';
-
+                resetForm(); 
                 input.value = ""; 
             };
             
@@ -340,7 +332,6 @@
                 }
             }
             updateDropdown("");
-            updateDebugStatus(); 
         }
 
         function filterDropdown() {
@@ -474,11 +465,6 @@
         }
 
         function searchData() {
-            if (csvData.length === 0) {
-                alert("먼저 '재고 CSV 업로드' 버튼을 눌러 데이터를 등록해 주세요.");
-                return;
-            }
-
             const baseLoc = document.getElementById('baseLocationSelect').value;
             const modelQuery = document.getElementById('modelSearch').value.toLowerCase().trim();
             const colorQuery = document.getElementById('colorSearch').value.toLowerCase().trim(); 
