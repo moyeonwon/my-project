@@ -97,6 +97,7 @@
         
         .no-result { margin-top: 25px; color: #e74c3c; font-weight: bold; text-align: center; padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         .info-text { font-size: 12px; color: #95a5a6; margin-top: -10px; margin-bottom: 20px; }
+        
         .debug-box { background: #e8f8f5; border: 1px solid #a3e4d7; padding: 10px 15px; border-radius: 6px; font-size: 12px; color: #117a65; margin-bottom: 15px; line-height: 1.6; }
     </style>
 </head>
@@ -105,7 +106,7 @@
     <h1>📱 위치 기준 재고 검색 시스템</h1>
     <p class="info-text">* 대용량 실시간 재고 파일 업로드 부탁드립니다.</p>
     
-    <div class="debug-box" id="debugBox">📂 아래 버튼을 통해 최신 재고 CSV 파일을 업로드해 주세요.</div>
+    <div class="debug-box" id="debugBox">✅ 데이터 연동 완료! (등록된 판매처: 0곳 / 등록된 재고: 0건)<br>📅 <b>재고 리스트 실제 수정 일시:</b> 대기 중</div>
 
     <div class="search-box">
         <div class="search-row">
@@ -169,7 +170,7 @@
         let csvData = [];          
         let coordData = {};        
         let allColorSet = new Set(); 
-        let dataFileModifiedTime = ""; 
+        let dataFileModifiedTime = "대기 중"; 
 
         window.onload = function() {
             fetch('coordinate.csv')
@@ -220,7 +221,7 @@
             return `${yyyy}년 ${mm}월 ${dd}일 ${hh}시 ${min}분`;
         }
 
-        // 업로드 완료 시 실제 수정 시간과 연동 건수를 출력하는 부분
+        // 안내창 업데이트 함수 (초기 로드 및 파일 업로드 시에 실시간 연동)
         function updateDebugStatus() {
             const coordCount = Object.keys(coordData).length;
             const debugEl = document.getElementById('debugBox');
@@ -246,14 +247,23 @@
                 
                 parseDataCSV(text);
                 
-                // ✨ 깃허브 배포 시간과 관계 없이, 실제 올린 파일의 PC 저장 시간을 출력
+                // 사용자가 올린 실제 파일의 마지막 수정 시각 추출
                 dataFileModifiedTime = file.lastModified ? formatDate(new Date(file.lastModified)) : formatDate(new Date());
                 
                 updateColorDropdown("");
                 updateDebugStatus(); 
                 
                 alert(`재고 데이터가 성공적으로 업데이트되었습니다.`);
-                resetForm(); 
+                
+                // 기존 입력폼 요소만 깔끔하게 초기화
+                document.getElementById('baseLocationSearch').value = '';
+                document.getElementById('modelSearch').value = '';
+                updateDropdown(""); 
+                updateColorDropdown(""); 
+                document.getElementById('resultBody').innerHTML = '';
+                document.getElementById('tableContainer').style.display = 'none';
+                document.getElementById('noResult').style.display = 'none';
+
                 input.value = ""; 
             };
             
@@ -296,6 +306,7 @@
                 }
             }
             updateDropdown("");
+            updateDebugStatus(); // coordinate 로드 후 초기 기본값 세팅을 위해 호출
         }
 
         function filterDropdown() {
