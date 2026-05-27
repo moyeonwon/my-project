@@ -172,7 +172,9 @@
         let allColorSet = new Set(); 
         let dataFileModifiedTime = "대기 중"; 
 
+        // ✨ 변경: 페이지 로드 시 coordinate.csv와 함께 LocalStorage에 저장된 기존 재고 데이터도 가져옵니다.
         window.onload = function() {
+            // 1. 위치 데이터 불러오기
             fetch('coordinate.csv')
                 .then(response => {
                     if (!response.ok) throw new Error('coordinate.csv 파일을 찾을 수 없습니다.');
@@ -181,11 +183,35 @@
                 .then(buffer => {
                     const text = decodeBufferAuto(buffer);
                     parseCoordinateCSV(text);
+                    
+                    // 2. LocalStorage에서 기존 저장된 데이터가 있다면 불러오기
+                    loadSavedData();
                 })
                 .catch(error => {
                     console.error("위치 데이터 로드 실패:", error.message);
                 });
         };
+
+        // ✨ 추가: 브라우저 저장소에서 데이터 로드하기
+        function loadSavedData() {
+            const savedTime = localStorage.getItem('stock_file_time');
+            const savedCsvData = localStorage.getItem('stock_csv_data');
+            const savedColors = localStorage.getItem('stock_color_set');
+
+            if (savedTime && savedCsvData) {
+                dataFileModifiedTime = savedTime;
+                csvData = JSON.parse(savedCsvData);
+                
+                if (savedColors) {
+                    const colorArray = JSON.parse(savedColors);
+                    allColorSet = new Set(colorArray);
+                }
+                
+                updateColorDropdown("");
+                updateDebugStatus();
+                console.log("브라우저 저장소로부터 기존 데이터를 성공적으로 복원했습니다.");
+            }
+        }
 
         function decodeBufferAuto(buffer) {
             const bytes = new Uint8Array(buffer);
@@ -221,7 +247,6 @@
             return `${yyyy}년 ${mm}월 ${dd}일 ${hh}시 ${min}분`;
         }
 
-        // 안내창 업데이트 함수 (초기 로드 및 파일 업로드 시에 실시간 연동)
         function updateDebugStatus() {
             const coordCount = Object.keys(coordData).length;
             const debugEl = document.getElementById('debugBox');
@@ -247,15 +272,24 @@
                 
                 parseDataCSV(text);
                 
-                // 사용자가 올린 실제 파일의 마지막 수정 시각 추출
+                // 파일 자체의 수정 시간 추출
                 dataFileModifiedTime = file.lastModified ? formatDate(new Date(file.lastModified)) : formatDate(new Date());
                 
+                // ✨ 변경: 업로드 성공 직후 브라우저 저장소(LocalStorage)에 데이터 백업
+                try {
+                    localStorage.setItem('stock_file_time', dataFileModifiedTime);
+                    localStorage.setItem('stock_csv_data', JSON.stringify(csvData));
+                    localStorage.setItem('stock_color_set', JSON.stringify(Array.from(allColorSet)));
+                } catch (e) {
+                    console.error("데이터 용량이 너무 커 LocalStorage 저장에 실패했습니다. (새로고침 시 재업로드 필요)", e);
+                }
+
                 updateColorDropdown("");
                 updateDebugStatus(); 
                 
                 alert(`재고 데이터가 성공적으로 업데이트되었습니다.`);
                 
-                // 기존 입력폼 요소만 깔끔하게 초기화
+                // 입력폼 요소만 깔끔하게 초기화
                 document.getElementById('baseLocationSearch').value = '';
                 document.getElementById('modelSearch').value = '';
                 updateDropdown(""); 
@@ -306,7 +340,7 @@
                 }
             }
             updateDropdown("");
-            updateDebugStatus(); // coordinate 로드 후 초기 기본값 세팅을 위해 호출
+            updateDebugStatus(); 
         }
 
         function filterDropdown() {
