@@ -33,7 +33,7 @@
             -webkit-overflow-scrolling: touch; 
         }
         
-        table { width: 100%; border-collapse: collapse; text-align: left; min-width: 750px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; min-width: 850px; }
         
         th, td { padding: 14px 16px; border-bottom: 1px solid #edf2f7; font-size: 14px; }
         th { background-color: #f8fafc; color: #2c3e50; font-weight: bold; border-bottom: 2px solid #e2e8f0; }
@@ -104,8 +104,7 @@
                     <th>일련번호</th>
                     <th>출고일</th> 
                     <th>거리 (km)</th>
-                    <th>상태 (비고)</th>
-                </tr>
+                    <th>상태</th> <th>비고 (T열)</th> </tr>
             </thead>
             <tbody id="resultBody">
             </tbody>
@@ -260,7 +259,7 @@
                 let tColData = cols[19] || '';  
                 let status = cols[21] || '';    
                 let demoStock = cols[35] || ''; 
-                let openedStock = cols[36] || ''; /* 💡 AK열 개봉 데이터 파싱 */
+                let openedStock = cols[36] || ''; 
 
                 if (model) {
                     model = model.replace(/so/gi, '');
@@ -280,7 +279,7 @@
                     'T열': tColData,      
                     '상태': status,       
                     '시연재고': demoStock,  
-                    '개봉여부': openedStock  // 추가
+                    '개봉여부': openedStock  
                 });
             }
         }
@@ -373,42 +372,35 @@
                         distanceDisplay = row['거리'] < 0.1 ? '★ 내 위치' : row['거리'].toFixed(1) + ' km';
                     }
                     
-                    // 💡 조건 판별 로직 (불량분실 / 시연 / 개봉)
+                    // 조건 판별 로직
                     let isWarning = row['상태'] && row['상태'] !== '정상' && (row['상태'].includes('불량') || row['상태'].includes('분실'));
                     let isDemo = row['시연재고'] && (row['시연재고'].includes('시연'));
                     let isOpened = row['개봉여부'] && (row['개봉여부'].includes('개봉'));
                     
-                    let remarkText = [];
+                    let statusList = [];
                     
-                    // 🎨 우선순위에 따라 행 색상 입히기 클래스 추가
+                    // 🎨 배경색 지정 우선순위 반영 및 상태 텍스트 분리 추가
                     if (isWarning) {
                         tr.classList.add('row-warning'); // 빨간색
-                        remarkText.push(`⚠️ [${row['상태']}]`);
+                        statusList.push(row['상태']);
                     } else if (isDemo) {
                         tr.classList.add('row-demo');    // 노란색
                     } else if (isOpened) {
                         tr.classList.add('row-opened');  // 회색
                     }
                     
-                    if (isDemo) {
-                        remarkText.push(`📱 [시연재고]`);
-                    }
+                    if (isDemo) statusList.push('시연재고');
+                    if (isOpened) statusList.push('개봉');
                     
-                    if (isOpened) {
-                        remarkText.push(`📦 [개봉]`);
-                    }
+                    // 상태 정보가 아무것도 매칭 안 되면 정상
+                    let finalStatus = statusList.join('/') || '정상';
+                    let finalRemark = row['T열'] || '-'; // 비고(T열) 분리
                     
-                    if (row['T열']) {
-                        remarkText.push(`(${row['T열']})`);
-                    }
-
-                    let finalRemark = remarkText.join(' ') || '정상';
-                    
-                    // 💡 상태 문구 컬러 설정
-                    let remarkColor = '#2c3e50';
-                    if (isWarning) remarkColor = '#e74c3c';
-                    else if (isDemo) remarkColor = '#d35400';
-                    else if (isOpened) remarkColor = '#7f8c8d';
+                    // 상태 글자 컬러 설정
+                    let statusColor = '#2c3e50';
+                    if (isWarning) statusColor = '#e74c3c';
+                    else if (isDemo) statusColor = '#d35400';
+                    else if (isOpened) statusColor = '#7f8c8d';
                     
                     tr.innerHTML = `
                         <td>${row['영업담당']}</td>
@@ -418,7 +410,8 @@
                         <td>${row['일련번호']}</td>
                         <td>${row['출고일']}</td> 
                         <td style="font-weight: bold; color: ${row['거리'] < 0.1 ? '#2ecc71' : (row['거리'] === 99999 ? '#95a5a6' : '#e67e22')};">${distanceDisplay}</td>
-                        <td style="font-weight: bold; color: ${remarkColor};">${finalRemark}</td>
+                        <td style="font-weight: bold; color: ${statusColor};">${finalStatus}</td>
+                        <td>${finalRemark}</td>
                     `;
                     tbody.appendChild(tr);
                 });
