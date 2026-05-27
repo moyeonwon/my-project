@@ -124,7 +124,7 @@
         let allColorSet = new Set(); 
         let dataFileModifiedTime = "확인 불가"; 
 
-        // 윈도우 로드 시 서버 내부의 기본 파일들 탐색 (인코딩 UTF-8로 통일)
+        // 최초 실행 시 서버에서 기본 데이터 로드 (모두 UTF-8 기본 처리)
         window.onload = function() {
             fetch('coordinate.csv')
                 .then(response => {
@@ -149,7 +149,6 @@
                     return response.arrayBuffer();
                 })
                 .then(buffer => {
-                    // 변경 포인트: 초기 서버 데이터 로드 시에도 UTF-8로 디코딩
                     const decoder = new TextDecoder('UTF-8');
                     const text = decoder.decode(buffer);
                     parseDataCSV(text);
@@ -192,17 +191,17 @@
             document.getElementById('csvFileInput').click();
         }
 
-        // 🟩 변경 포인트: 어떤 이름의 CSV 파일이든 상관없이 무조건 data.csv 데이터로 치환하여 업로드 처리
+        // ✨ 핵심 변경 포인트: 파일명 검사를 아예 제거하고, 업로드된 파일을 무조건 data.csv로 강제 적용
         function handleFileUpload(input) {
-            const files = input.files;
-            if (files.length === 0) return;
+            if (input.files.length === 0) return;
 
-            const file = files[0]; // 선택한 첫 번째 파일 확보
+            const file = input.files[0]; 
             const reader = new FileReader();
 
             reader.onload = function(e) {
                 const buffer = e.target.result;
-                // 변경 포인트: 업로드 파일 처리 시에도 인코딩을 UTF-8 고정 적용
+                
+                // 요구사항 반영: 인코딩 UTF-8 고정 적용
                 const decoder = new TextDecoder('UTF-8');
                 const text = decoder.decode(buffer);
                 
@@ -210,18 +209,18 @@
                 csvData = []; 
                 allColorSet.clear();
                 
-                // 파싱 진행 (내부적으로 data.csv 규칙을 태움)
+                // 무조건 재고 데이터 파싱 규칙 적용
                 parseDataCSV(text);
                 
-                // 업로드된 원본 파일명과 수정 시간을 상단 알림창에 기록 (구별용)
+                // 안내 박스에 업로드 정보 업데이트
                 let fileTime = file.lastModified ? formatDate(new Date(file.lastModified)) : "확인 불가";
-                dataFileModifiedTime = `${fileTime} (업로드된 파일명: ${file.name} ➡️ 시스템 내부 data.csv로 매핑 완료)`;
+                dataFileModifiedTime = `${fileTime} (파일명: ${file.name} ➡️ 재고 데이터 적용 완료)`;
                 
                 updateColorDropdown("");
                 updateDebugStatus();
                 
-                alert(`'${file.name}' 파일이 'data.csv' 역할로 정상 등록되었습니다.`);
-                resetForm(); // 검색 화면 초기화 처리
+                alert(`'${file.name}' 데이터가 성공적으로 반영되었습니다.`);
+                resetForm(); // 검색 화면 및 결과 초기화
                 input.value = ""; // 파일 업로더 초기화
             };
             
