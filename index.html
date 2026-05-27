@@ -174,7 +174,6 @@
         let csvData = [];          
         let coordData = {};        
         let allColorSet = new Set(); 
-        let dataFileModifiedTime = "확인 불가"; 
 
         window.onload = function() {
             fetch('coordinate.csv')
@@ -190,12 +189,6 @@
                 })
                 .then(response => {
                     if (!response.ok) throw new Error('data.csv 파일을 찾을 수 없습니다.');
-                    
-                    const lastModified = response.headers.get('Last-Modified');
-                    if (lastModified) {
-                        dataFileModifiedTime = formatDate(new Date(lastModified));
-                    }
-                    
                     return response.arrayBuffer();
                 })
                 .then(buffer => {
@@ -235,22 +228,13 @@
             return decoder.decode(buffer);
         }
 
-        function formatDate(dateObj) {
-            const yyyy = dateObj.getFullYear();
-            const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const dd = String(dateObj.getDate()).padStart(2, '0');
-            const hh = String(dateObj.getHours()).padStart(2, '0');
-            const min = String(dateObj.getMinutes()).padStart(2, '0');
-            return `${yyyy}년 ${mm}월 ${dd}일 ${hh}시 ${min}분`;
-        }
-
         function updateDebugStatus() {
             const coordCount = Object.keys(coordData).length;
             const debugEl = document.getElementById('debugBox');
             debugEl.style.backgroundColor = '#e8f8f5';
             debugEl.style.borderColor = '#a3e4d7';
             debugEl.style.color = '#117a65';
-            debugEl.innerHTML = `✅ 데이터 연동 완료! (등록된 판매처: ${coordCount}곳 / 등록된 재고: ${csvData.length}건)<br>📅 <b>재고 리스트 업로드 일시:</b> ${dataFileModifiedTime}`;
+            debugEl.innerHTML = `✅ 데이터 연동 완료! (등록된 판매처: ${coordCount}곳 / 등록된 재고: ${csvData.length}건)`;
         }
 
         function showErrorStatus(message) {
@@ -279,9 +263,6 @@
                 allColorSet.clear();
                 
                 parseDataCSV(text);
-                
-                dataFileModifiedTime = file.lastModified ? formatDate(new Date(file.lastModified)) : "확인 불가";
-                
                 updateColorDropdown("");
                 updateDebugStatus(); 
                 
