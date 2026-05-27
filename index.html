@@ -140,7 +140,7 @@
                 .then(response => {
                     if (!response.ok) throw new Error('data.csv 파일을 찾을 수 없습니다.');
                     
-                    // coordinate.csv 파일 수정일은 철저히 무시하고, 오직 data.csv 파일 시간만 기록
+                    // 오직 data.csv 파일 시간만 기록 (수정)
                     const lastModified = response.headers.get('Last-Modified');
                     if (lastModified) {
                         dataFileModifiedTime = formatDate(new Date(lastModified));
@@ -153,7 +153,7 @@
                     parseDataCSV(text);
                     
                     updateColorDropdown("");
-                    updateDebugStatus();
+                    updateDebugStatus(); // 화면UI 갱신
                 })
                 .catch(error => {
                     showErrorStatus(`기본 재고 로드 실패 (새로운 CSV 파일을 직접 업로드해 주세요): ${error.message}`);
@@ -195,14 +195,14 @@
             return `${yyyy}년 ${mm}월 ${dd}일 ${hh}시 ${min}분`;
         }
 
-        // ✨ 변경 포인트: 다른 부가 설명 문구를 다 지우고, 깔끔하게 data.csv 파일의 수정/업로드 시간만 출력
+        // ✨ 변경 포인트: "재고 리스트 업로드 일시:" 문구 반영 완료
         function updateDebugStatus() {
             const coordCount = Object.keys(coordData).length;
             const debugEl = document.getElementById('debugBox');
             debugEl.style.backgroundColor = '#e8f8f5';
             debugEl.style.borderColor = '#a3e4d7';
             debugEl.style.color = '#117a65';
-            debugEl.innerHTML = `✅ 데이터 연동 완료! (등록된 판매처 좌표: ${coordCount}곳 / 등록된 전체 재고: ${csvData.length}건)<br>📅 <b>data.csv 업로드 일시:</b> ${dataFileModifiedTime}`;
+            debugEl.innerHTML = `✅ 데이터 연동 완료! (등록된 판매처 좌표: ${coordCount}곳 / 등록된 전체 재고: ${csvData.length}건)<br>📅 <b>재고 리스트 업로드 일시:</b> ${dataFileModifiedTime}`;
         }
 
         function showErrorStatus(message) {
@@ -217,7 +217,7 @@
             document.getElementById('csvFileInput').click();
         }
 
-        // 파일 업로드 시 data.csv 시간 정보 갱신
+        // ✨ 변경 포인트: 시간 변수(dataFileModifiedTime) 업데이트 후 즉시 updateDebugStatus()가 호출되도록 순서 변경 완료
         function handleFileUpload(input) {
             if (input.files.length === 0) return;
 
@@ -233,13 +233,14 @@
                 
                 parseDataCSV(text);
                 
-                // ✨ 변경 포인트: 사용자가 어떤 이름의 파일을 가져왔든 간에, 업로드된 최종 본체의 수정 날짜만 딱 추출하여 깔끔하게 세팅합니다.
+                // 오직 재고 리스트 역할을 수행하는 이 파일의 수정 시간만 추출
                 dataFileModifiedTime = file.lastModified ? formatDate(new Date(file.lastModified)) : "확인 불가";
                 
+                // 순서 정상화: 시간을 바꾼 뒤 색상 목록과 알림창 UI를 최신화합니다.
                 updateColorDropdown("");
-                updateDebugStatus();
+                updateDebugStatus(); 
                 
-                alert(`재고 데이터(data.csv)가 성공적으로 업데이트되었습니다.`);
+                alert(`재고 데이터가 성공적으로 업데이트되었습니다.`);
                 resetForm(); 
                 input.value = ""; 
             };
