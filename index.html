@@ -160,7 +160,7 @@
                     <th>일련번호</th>
                     <th>보유기간</th> <th>거리 (km)</th>
                     <th>상태</th> 
-                    <th>비고 (T열)</th> 
+                    <th>비고</th> 
                 </tr>
             </thead>
             <tbody id="resultBody">
@@ -386,7 +386,7 @@
                 let model = cols[14] || '';    
                 let color = cols[17] || '';    
                 let serial = cols[18] || '';   
-                let holdPeriod = cols[34] || ''; // 수정: cols[33](AH열) -> cols[34](AI열)에서 데이터를 읽어옴
+                let holdPeriod = cols[34] || ''; 
 
                 let tColData = cols[19] || '';  
                 let status = cols[21] || '';    
@@ -406,7 +406,7 @@
                     '모델명': model,
                     '색상': color,
                     '일련번호': serial,
-                    '보유기간': holdPeriod, // 수정: 매핑 키 이름을 보유기간으로 설정
+                    '보유기간': holdPeriod,
                     'T열': tColData,      
                     '상태': status,       
                     '개봉여부': openedStock  
@@ -525,7 +525,6 @@
                         statusColor = '#374151';
                     }
                     
-                    // 수정: row['출고일'] 부분을 row['보유기간']으로 변경하여 매핑
                     tr.innerHTML = `
                         <td>${row['영업담당']}</td>
                         <td>${row['보유처']}</td>
