@@ -176,7 +176,6 @@
         let allColorSet = new Set(); 
         let dataFileModifiedTime = "확인 불가"; 
 
-        // ✨ 변경: 이전 답변에서 LocalStorage 복구 로직 적용을 수락하셨으므로, 새로고침 시 데이터를 유지하는 금고 로직을 통합 반영합니다.
         window.onload = function() {
             fetch('coordinate.csv')
                 .then(response => {
@@ -187,14 +186,9 @@
                     const text = decodeBufferAuto(buffer);
                     parseCoordinateCSV(text);
                     
-                    // LocalStorage 백업본 확인 후 복원 우선 처리
-                    if(loadSavedData()) return;
-
-                    // 백업본이 없으면 원래대로 data.csv 가져오기
                     return fetch('data.csv');
                 })
                 .then(response => {
-                    if (!response) return; // 위에서 로컬데이터를 로드했다면 통과
                     if (!response.ok) throw new Error('data.csv 파일을 찾을 수 없습니다.');
                     
                     const lastModified = response.headers.get('Last-Modified');
@@ -205,7 +199,6 @@
                     return response.arrayBuffer();
                 })
                 .then(buffer => {
-                    if (!buffer) return;
                     const text = decodeBufferAuto(buffer);
                     parseDataCSV(text);
                     
@@ -216,24 +209,6 @@
                     showErrorStatus(`기본 재고 로드 실패 (새로운 CSV 파일을 직접 업로드해 주세요): ${error.message}`);
                 });
         };
-
-        function loadSavedData() {
-            const savedTime = localStorage.getItem('stock_file_time');
-            const savedCsvData = localStorage.getItem('stock_csv_data');
-            const savedColors = localStorage.getItem('stock_color_set');
-
-            if (savedTime && savedCsvData) {
-                dataFileModifiedTime = savedTime;
-                csvData = JSON.parse(savedCsvData);
-                if (savedColors) {
-                    allColorSet = new Set(JSON.parse(savedColors));
-                }
-                updateColorDropdown("");
-                updateDebugStatus();
-                return true;
-            }
-            return false;
-        }
 
         function decodeBufferAuto(buffer) {
             const bytes = new Uint8Array(buffer);
@@ -307,15 +282,6 @@
                 
                 dataFileModifiedTime = file.lastModified ? formatDate(new Date(file.lastModified)) : "확인 불가";
                 
-                // 브라우저 내부 보관소 백업 저장 업데이트
-                try {
-                    localStorage.setItem('stock_file_time', dataFileModifiedTime);
-                    localStorage.setItem('stock_csv_data', JSON.stringify(csvData));
-                    localStorage.setItem('stock_color_set', JSON.stringify(Array.from(allColorSet)));
-                } catch (err) {
-                    console.error("데이터 용량이 너무 커 LocalStorage 저장에 실패했습니다.", err);
-                }
-
                 updateColorDropdown("");
                 updateDebugStatus(); 
                 
@@ -420,7 +386,7 @@
                 let model = cols[14] || '';    
                 let color = cols[17] || '';    
                 let serial = cols[18] || '';   
-                let holdPeriod = cols[34] || ''; // ✨ 변경: AH열(cols[33]) 대신 AI열(cols[34]) 데이터를 가져옴
+                let holdPeriod = cols[34] || ''; // 수정: cols[33](AH열) -> cols[34](AI열)에서 데이터를 읽어옴
 
                 let tColData = cols[19] || '';  
                 let status = cols[21] || '';    
@@ -440,7 +406,7 @@
                     '모델명': model,
                     '색상': color,
                     '일련번호': serial,
-                    '보유기간': holdPeriod, // ✨ 변경: 매핑 키 변경
+                    '보유기간': holdPeriod, // 수정: 매핑 키 이름을 보유기간으로 설정
                     'T열': tColData,      
                     '상태': status,       
                     '개봉여부': openedStock  
@@ -559,7 +525,7 @@
                         statusColor = '#374151';
                     }
                     
-                    // ✨ 변경: row['출고일'] 출력부품을 row['보유기간']으로 교체 반영
+                    // 수정: row['출고일'] 부분을 row['보유기간']으로 변경하여 매핑
                     tr.innerHTML = `
                         <td>${row['영업담당']}</td>
                         <td>${row['보유처']}</td>
