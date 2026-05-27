@@ -9,6 +9,7 @@
         h1 { color: #2c3e50; font-size: 24px; margin-bottom: 20px; }
         .search-box { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
         
+        /* 기본 PC 레이아웃 */
         .search-row { margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 15px; }
         .input-group { display: flex; flex-direction: column; }
         
@@ -19,7 +20,7 @@
         /* 버튼 그룹 레이아웃 */
         .btn-group { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; }
         
-        /* 기본 PC 스타일 (원래 설정하신 120px 크기) */
+        /* PC 버튼 크기 (120px 고정) */
         button { 
             width: 120px;
             padding: 12px 0; 
@@ -40,22 +41,42 @@
         .btn-upload { background-color: #2ecc71; }
         .btn-upload:hover { background-color: #27ae60; }
 
-        /* 모바일 환경(스마트폰 화면 폭) 대응 미디어 쿼리 */
+        /* ✨ 변경 포인트: 모바일 환경 반응형 스타일 */
         @media screen and (max-width: 480px) {
+            /* 1. 입력창 영역 한 줄 정렬 설정 */
+            .search-row { 
+                display: flex;
+                flex-wrap: nowrap; /* 줄바꿈 방지 */
+                gap: 8px;          /* 좌우 간격 축소 */
+                margin-bottom: 10px;
+            }
+            .input-group { 
+                flex: 1;           /* 반반씩 균등하게 너비 배분 */
+                min-width: 0;      /* flex 아이템 자름 방지 */
+            }
+            input, select { 
+                width: 100%;       /* 할당된 너비에 꽉 차게 */
+                padding: 10px 5px; /* 모바일 대응 내부 여백 조절 */
+                font-size: 13px; 
+            }
+            label { 
+                font-size: 11px;   /* 라벨 글자 크기 축소 */
+                white-space: nowrap; 
+                overflow: hidden;
+                text-overflow: ellipsis; /* 글자가 너무 길면 ... 처리 */
+            }
+
+            /* 2. 버튼 영역 한 줄 정렬 설정 */
             .btn-group { 
-                flex-wrap: nowrap; /* 모바일에서 절대 줄바꿈 되지 않도록 설정 */
-                gap: 5px;          /* 버튼 사이 간격을 좁게 변경 */
+                flex-wrap: nowrap; 
+                gap: 5px;          
             }
             button { 
-                width: 33.33%;     /* 세 버튼이 정확히 3등분하여 화면을 꽉 채우도록 설정 */
-                padding: 10px 0;   /* 위아래 여백을 살짝 줄임 */
-                font-size: 11px;   /* "재고 CSV 업로드" 문구가 한 줄에 나오도록 글씨 크기 축소 */
-                letter-spacing: -0.5px; /* 글자 자간을 좁혀서 가독성 확보 */
+                width: 33.33%;     
+                padding: 10px 0;   
+                font-size: 11px;   
+                letter-spacing: -0.5px; 
             }
-            
-            /* 입력창들도 모바일 화면 너비에 맞춰 꽉 차게 변경 */
-            input, select { width: 100%; }
-            .search-row { gap: 10px; }
         }
 
         .table-container { 
@@ -93,19 +114,21 @@
     <div class="debug-box" id="debugBox">⏳ CSV 데이터를 불러오는 중입니다...</div>
 
     <div class="search-box">
+        <!-- 첫 번째 행: 위치 검색 & 선택 -->
         <div class="search-row">
             <div class="input-group">
-                <label for="baseLocationSearch">① 내 위치 검색 (판매처명 입력)</label>
+                <label for="baseLocationSearch">① 내 위치 검색</label>
                 <input type="text" id="baseLocationSearch" oninput="filterDropdown()" placeholder="예: 광장, 중곡">
             </div>
             <div class="input-group">
                 <label for="baseLocationSelect">② 특정 판매처 선택</label>
                 <select id="baseLocationSelect">
-                    <option value="">-- 먼저 왼쪽에 검색어를 입력하세요 --</option>
+                    <option value="">-- 입력 후 선택 --</option>
                 </select>
             </div>
         </div>
 
+        <!-- 두 번째 행: 모델명 & 색상 -->
         <div class="search-row">
             <div class="input-group">
                 <label for="modelSearch">모델명</label>
