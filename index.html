@@ -145,7 +145,7 @@
             <button class="btn-reset" onclick="resetForm()">초기화</button>
             
             <button class="btn-upload" onclick="triggerFileInput()">재고 CSV 업로드</button>
-            <input type="file" id="csvFileInput" accept=".csv" style="display: none;" onchange="handleFileUpload(this)">
+            <input type="file" id="csvFileInput" name="stockFile" accept=".csv" style="display: none;" onchange="handleFileUpload(this)">
         </div>
     </div>
 
@@ -175,8 +175,19 @@
         let coordData = {};        
         let allColorSet = new Set(); 
 
+        // 최초 접속 시 실행: 이제 라이브 서버에서 상대경로로 캐싱 없이 항상 최신 파일을 받아옵니다.
         window.onload = function() {
-            fetch('coordinate.csv')
+            loadInitialData();
+        };
+
+        function loadInitialData() {
+            csvData = [];
+            allColorSet.clear();
+
+            // 파라미터에 현재 시간을 붙여 브라우저가 예전 data.csv 파일을 캐싱(기억)하지 못하게 방지합니다.
+            const cacheBuster = "?t=" + new Date().getTime();
+
+            fetch('coordinate.csv' + cacheBuster)
                 .then(response => {
                     if (!response.ok) throw new Error('coordinate.csv 파일을 찾을 수 없습니다.');
                     return response.arrayBuffer(); 
@@ -185,7 +196,7 @@
                     const text = decodeBufferAuto(buffer);
                     parseCoordinateCSV(text);
                     
-                    return fetch('data.csv');
+                    return fetch('data.csv' + cacheBuster);
                 })
                 .then(response => {
                     if (!response.ok) throw new Error('data.csv 파일을 찾을 수 없습니다.');
@@ -199,9 +210,9 @@
                     updateDebugStatus(); 
                 })
                 .catch(error => {
-                    showErrorStatus(`기본 재고 로드 실패 (새로운 CSV 파일을 직접 업로드해 주세요): ${error.message}`);
+                    showErrorStatus(`기본 재고 로드 실패: ${error.message}`);
                 });
-        };
+        }
 
         function decodeBufferAuto(buffer) {
             const bytes = new Uint8Array(buffer);
@@ -249,29 +260,39 @@
             document.getElementById('csvFileInput').click();
         }
 
+        // 🚨 [수정 핵심] 업로드 시 서버로 전송하여 data.csv 파일 자체를 물리적으로 영구 교체합니다.
         function handleFileUpload(input) {
             if (input.files.length === 0) return;
 
             const file = input.files[0]; 
-            const reader = new FileReader();
+            const formData = new FormData();
+            formData.append('stockFile', file); // server.js 규격 명칭
 
-            reader.onload = function(e) {
-                const buffer = e.target.result;
-                const text = decodeBufferAuto(buffer);
-                
-                csvData = []; 
-                allColorSet.clear();
-                
-                parseDataCSV(text);
-                updateColorDropdown("");
-                updateDebugStatus(); 
-                
-                alert(`재고 데이터가 성공적으로 업데이트되었습니다.`);
-                resetForm(); 
+            showErrorStatus("⏳ 대용량 파일을 서버에 업로드 및 교체 중입니다. 잠시만 기다려주세요...");
+
+            // 백엔드 업로드 API로 전송
+            fetch('/upload-csv', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`🎉 서버의 재고 파일이 완전히 교체되었습니다!\n이제 재접속하거나 다른 기기에서 보셔도 최신 파일로 유지됩니다.`);
+                    
+                    // 파일 저장 후 화면 갱신을 위해 최신 상태를 서버에서 다시 다운로드
+                    loadInitialData();
+                    resetForm();
+                } else {
+                    alert(`❌ 업로드 실패: ${data.message}`);
+                }
                 input.value = ""; 
-            };
-            
-            reader.readAsArrayBuffer(file);
+            })
+            .catch(error => {
+                alert(`❌ 서버 통신 오류: ${error.message}`);
+                loadInitialData();
+                input.value = "";
+            });
         }
 
         function splitCSVLine(line) {
