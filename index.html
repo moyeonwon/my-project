@@ -9,7 +9,6 @@
         h1 { color: #2c3e50; font-size: 24px; margin-bottom: 20px; }
         .search-box { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px; }
         
-        /* 기본 PC 레이아웃 */
         .search-row { margin-bottom: 15px; display: flex; flex-wrap: wrap; gap: 15px; }
         .input-group { display: flex; flex-direction: column; }
         
@@ -17,10 +16,9 @@
         input, select { padding: 10px; width: 220px; border: 1px solid #ccd1d9; border-radius: 6px; font-size: 14px; box-sizing: border-box; background-color: #fff; }
         input:focus, select:focus { border-color: #3498db; outline: none; }
         
-        /* 버튼 그룹 레이아웃 */
+        /* 버튼 그룹 스타일 정의 */
         .btn-group { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; }
         
-        /* PC 버튼 크기 (120px 고정) */
         button { 
             width: 120px;
             padding: 12px 0; 
@@ -38,39 +36,38 @@
         .btn-search:hover { background-color: #2980b9; }
         .btn-reset { background-color: #95a5a6; }
         .btn-reset:hover { background-color: #7f8c8d; }
+        .btn-upload { background-color: #2ecc71; }
+        .btn-upload:hover { background-color: #27ae60; }
 
-        /* 모바일 환경 반응형 스타일 */
         @media screen and (max-width: 480px) {
-            /* 1. 입력창 영역 한 줄 정렬 설정 */
             .search-row { 
                 display: flex;
-                flex-wrap: nowrap; /* 줄바꿈 방지 */
-                gap: 8px;          /* 좌우 간격 축소 */
+                flex-wrap: nowrap; 
+                gap: 8px;          
                 margin-bottom: 10px;
             }
             .input-group { 
-                flex: 1;           /* 반반씩 균등하게 너비 배분 */
-                min-width: 0;      /* flex 아이템 자름 방지 */
+                flex: 1;           
+                min-width: 0;      
             }
             input, select { 
-                width: 100%;       /* 할당된 너비에 꽉 차게 */
-                padding: 10px 5px; /* 모바일 대응 내부 여백 조절 */
+                width: 100%;       
+                padding: 10px 5px; 
                 font-size: 13px; 
             }
             label { 
-                font-size: 11px;   /* 라벨 글자 크기 축소 */
+                font-size: 11px;   
                 white-space: nowrap; 
                 overflow: hidden;
-                text-overflow: ellipsis; /* 글자가 너무 길면 ... 처리 */
+                text-overflow: ellipsis; 
             }
 
-            /* 2. 버튼 영역 정렬 설정 */
             .btn-group { 
                 flex-wrap: nowrap; 
                 gap: 5px;          
             }
             button { 
-                width: 50%;     
+                width: 33.33%;     
                 padding: 10px 0;   
                 font-size: 11px;   
                 letter-spacing: -0.5px; 
@@ -107,9 +104,11 @@
 <body>
 
     <h1>📱 위치 기준 재고 검색 시스템</h1>
-    <p class="info-text">* 기본 탑재된 실시간 재고를 기반으로 조회합니다.</p>
+    <p class="info-text">* 실시간재고현황 CSV 파일을 업로드해주세요.</p>
     
-    <div class="debug-box" id="debugBox">⏳ CSV 데이터를 불러오는 중입니다...</div>
+    <div class="debug-box" id="debugBox">⏳ 서버에서 최신 데이터를 불러오는 중입니다...</div>
+
+    <input type="file" id="dataFile" accept=".csv" onchange="handleFileLoad()" style="display: none;">
 
     <div class="search-box">
         <div class="search-row">
@@ -141,6 +140,7 @@
         <div class="btn-group">
             <button class="btn-search" onclick="searchData()">검색</button>
             <button class="btn-reset" onclick="resetForm()">초기화</button>
+            <button class="btn-upload" onclick="triggerFileUpload()">업로드</button>
         </div>
     </div>
 
@@ -170,57 +170,123 @@
         let coordData = {};        
         let allColorSet = new Set(); 
 
+        const OWNER = "moyeonwon";    // 깃허브 아이디
+        const REPO = "work";     // 저장소(Repository) 이름
+        
+        const T_1 = "ghp_QCkeOEuALhBV3EMe"; 
+        const T_2 = "0YKZmUI29V2UXp47VQ24";
+        const G_AUTH = "Bearer " + T_1 + T_2;
+
         window.onload = function() {
-            fetch('coordinate.csv')
-                .then(response => {
-                    if (!response.ok) throw new Error('coordinate.csv 파일을 찾을 수 없습니다.');
-                    return response.arrayBuffer(); 
-                })
-                .then(buffer => {
-                    const text = decodeBufferAuto(buffer);
-                    parseCoordinateCSV(text);
-                    
-                    return fetch('data.csv');
-                })
-                .then(response => {
-                    if (!response.ok) throw new Error('data.csv 파일을 찾을 수 없습니다.');
-                    return response.arrayBuffer();
-                })
-                .then(buffer => {
-                    const text = decodeBufferAuto(buffer);
-                    parseDataCSV(text);
-                    
-                    updateColorDropdown("");
-                    updateDebugStatus(); 
-                })
-                .catch(error => {
-                    showErrorStatus(`기본 데이터 로드 실패: ${error.message}`);
+            fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/coordinate.csv?v=${Date.now()}`, {
+                headers: { "Authorization": G_AUTH, "Accept": "application/vnd.github.v3.raw" }
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('coordinate.csv 로드 실패');
+                return res.arrayBuffer();
+            })
+            .then(buffer => {
+                const text = decodeBufferAuto(buffer);
+                parseCoordinateCSV(text);
+                return fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/data.csv?v=${Date.now()}`, {
+                    headers: { "Authorization": G_AUTH, "Accept": "application/vnd.github.v3.raw" }
                 });
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('data.csv 로드 실패');
+                return res.arrayBuffer();
+            })
+            .then(buffer => {
+                const text = decodeBufferAuto(buffer);
+                csvData = [];
+                allColorSet.clear();
+                parseDataCSV(text);
+                updateColorDropdown("");
+                updateDebugStatus();
+            })
+            .catch(err => {
+                showErrorStatus(`서버 데이터 로드 실패: ${err.message}`);
+            });
         };
+
+        function triggerFileUpload() {
+            document.getElementById('dataFile').click();
+        }
+
+        async function handleFileLoad() {
+            const fileInput = document.getElementById('dataFile');
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const buffer = e.target.result;
+                
+                const text = decodeBufferAuto(buffer);
+                csvData = []; 
+                allColorSet.clear();
+                parseDataCSV(text);
+                updateColorDropdown("");
+                
+                try {
+                    const debugEl = document.getElementById('debugBox');
+                    debugEl.innerHTML = "⏳ 서버 원본 데이터 동기화 중...";
+
+                    const bytes = new Uint8Array(buffer);
+                    let binary = '';
+                    for (let i = 0; i < bytes.byteLength; i++) {
+                        binary += String.fromCharCode(bytes[i]);
+                    }
+                    const base64Content = btoa(binary);
+
+                    const url = `https://api.github.com/repos/${OWNER}/${REPO}/contents/data.csv`;
+                    
+                    const getRes = await fetch(url, { headers: { "Authorization": G_AUTH } });
+                    let sha = "";
+                    if (getRes.ok) {
+                        const fileInfo = await getRes.json();
+                        sha = fileInfo.sha;
+                    }
+
+                    const putRes = await fetch(url, {
+                        method: "PUT",
+                        headers: { "Authorization": G_AUTH, "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            message: "재고 데이터 웹 UI 업로드 덮어쓰기",
+                            content: base64Content,
+                            sha: sha
+                        })
+                    });
+
+                    if (putRes.ok) {
+                        updateDebugStatus();
+                        alert("✅ 서버 파일 교체 완료! 변경된 재고로 조회됩니다.");
+                    } else {
+                        const errData = await putRes.json();
+                        throw new Error(errData.message);
+                    }
+
+                } catch (error) {
+                    console.error(error);
+                    showErrorStatus(`서버 저장 실패: ${error.message}`);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
 
         function decodeBufferAuto(buffer) {
             const bytes = new Uint8Array(buffer);
             let isUTF8 = true;
             let i = 0;
-            
             while (i < bytes.length) {
-                if (bytes[i] <= 0x7F) {
-                    i += 1;
-                } else if ((bytes[i] & 0xE0) === 0xC0 && i + 1 < bytes.length && (bytes[i+1] & 0xC0) === 0x80) {
-                    i += 2;
-                } else if ((bytes[i] & 0xF0) === 0xE0 && i + 2 < bytes.length && (bytes[i+1] & 0xC0) === 0x80 && (bytes[i+2] & 0xC0) === 0x80) {
-                    i += 3;
-                } else if ((bytes[i] & 0xF8) === 0xF0 && i + 3 < bytes.length && (bytes[i+1] & 0xC0) === 0x80 && (bytes[i+2] & 0xC0) === 0x80 && (bytes[i+3] & 0xC0) === 0x80) {
-                    i += 4;
-                } else {
-                    isUTF8 = false;
-                    break;
-                }
+                if (bytes[i] <= 0x7F) { i += 1; }
+                else if ((bytes[i] & 0xE0) === 0xC0 && i + 1 < bytes.length && (bytes[i+1] & 0xC0) === 0x80) { i += 2; }
+                else if ((bytes[i] & 0xF0) === 0xE0 && i + 2 < bytes.length && (bytes[i+1] & 0xC0) === 0x80 && (bytes[i+2] & 0xC0) === 0x80) { i += 3; }
+                else if ((bytes[i] & 0xF8) === 0xF0 && i + 3 < bytes.length && (bytes[i+1] & 0xC0) === 0x80 && (bytes[i+2] & 0xC0) === 0x80 && (bytes[i+3] & 0xC0) === 0x80) { i += 4; }
+                else { isUTF8 = false; break; }
             }
-
             const encoding = isUTF8 ? 'utf-8' : 'euc-kr';
-            const decoder = new TextDecoder(encoding);
-            return decoder.decode(buffer);
+            return new TextDecoder(encoding).decode(buffer);
         }
 
         function updateDebugStatus() {
@@ -241,266 +307,133 @@
         }
 
         function splitCSVLine(line) {
-            let result = [];
-            let insideQuote = false;
-            let current = '';
+            let result = []; let insideQuote = false; let current = '';
             for (let i = 0; i < line.length; i++) {
                 let char = line[i];
-                if (char === '"') {
-                    insideQuote = !insideQuote;
-                } else if (char === ',' && !insideQuote) {
-                    result.push(current.trim());
-                    current = '';
-                } else {
-                    current += char;
-                }
+                if (char === '"') { insideQuote = !insideQuote; }
+                else if (char === ',' && !insideQuote) { result.push(current.trim()); current = ''; }
+                else { current += char; }
             }
-            result.push(current.trim());
-            return result;
+            result.push(current.trim()); return result;
         }
 
         function parseCoordinateCSV(text) {
             const lines = text.split(/\r?\n/);
             if (lines.length < 1) return;
-
             for (let i = 1; i < lines.length; i++) {
                 if (!lines[i].trim()) continue;
                 const cols = splitCSVLine(lines[i]);
-                
                 let locName = cols[0] ? cols[0].replace(/"/g, '') : '';   
-                let lat = parseFloat(cols[1]); 
-                let lng = parseFloat(cols[2]); 
-
-                if (locName && !isNaN(lat) && !isNaN(lng)) {
-                    coordData[locName] = { lat: lat, lng: lng };
-                }
+                let lat = parseFloat(cols[1]); let lng = parseFloat(cols[2]); 
+                if (locName && !isNaN(lat) && !isNaN(lng)) { coordData[locName] = { lat: lat, lng: lng }; }
             }
             updateDropdown("");
         }
 
-        function filterDropdown() {
-            const query = document.getElementById('baseLocationSearch').value.toLowerCase().trim();
-            updateDropdown(query);
-        }
+        function filterDropdown() { const query = document.getElementById('baseLocationSearch').value.toLowerCase().trim(); updateDropdown(query); }
 
         function updateDropdown(query) {
-            const selectEl = document.getElementById('baseLocationSelect');
-            selectEl.innerHTML = ''; 
-
+            const selectEl = document.getElementById('baseLocationSelect'); selectEl.innerHTML = ''; 
             let count = 0;
-            
             if (query === "") {
-                const defaultOpt = document.createElement('option');
-                defaultOpt.value = "";
-                defaultOpt.textContent = "- 판매처 선택 -";
-                selectEl.appendChild(defaultOpt);
+                const defaultOpt = document.createElement('option'); defaultOpt.value = ""; defaultOpt.textContent = "- 판매처 선택 -"; selectEl.appendChild(defaultOpt);
             }
-
             Object.keys(coordData).forEach(name => {
                 if (query === "" || name.toLowerCase().includes(query)) {
-                    let option = document.createElement('option');
-                    option.value = name;
-                    option.textContent = name;
-                    selectEl.appendChild(option);
-                    count++;
+                    let option = document.createElement('option'); option.value = name; option.textContent = name; selectEl.appendChild(option); count++;
                 }
             });
-
             if (query !== "" && count === 0) {
-                let option = document.createElement('option');
-                option.value = "";
-                option.textContent = "❌ 일치하는 판매처가 없습니다.";
-                selectEl.appendChild(option);
+                let option = document.createElement('option'); option.value = ""; option.textContent = "❌ 일치하는 판매처가 없습니다."; selectEl.appendChild(option);
             }
         }
 
         function parseDataCSV(text) {
-            const lines = text.split(/\r?\n/);
-            if (lines.length < 3) return;
-
+            const lines = text.split(/\r?\n/); if (lines.length < 3) return;
             for (let i = 3; i < lines.length; i++) {
                 if (!lines[i].trim()) continue;
                 const cols = splitCSVLine(lines[i]);
-                
-                let demoStock = cols[35] || ''; 
-                
-                if (demoStock && demoStock.includes('시연')) {
-                    continue; 
-                }
-
-                let manager = cols[5] || '';   
-                let location = cols[11] || ''; 
-                let model = cols[14] || '';    
-                let color = cols[17] || '';    
-                let serial = cols[18] || '';   
-                let holdPeriod = cols[34] || ''; 
-
-                let tColData = cols[19] || '';  
-                let status = cols[21] || '';    
-                let openedStock = cols[36] || ''; 
-
-                if (model) {
-                    model = model.replace(/so/gi, '');
-                }
-
-                if (color.trim() !== "") {
-                    allColorSet.add(color.trim());
-                }
-
-                csvData.push({
-                    '영업담당': manager,
-                    '보유처': location,
-                    '모델명': model,
-                    '색상': color,
-                    '일련번호': serial,
-                    '보유기간': holdPeriod,
-                    'T열': tColData,      
-                    '상태': status,       
-                    '개봉여부': openedStock  
-                });
+                let demoStock = cols[35] || ''; if (demoStock && demoStock.includes('시연')) continue; 
+                let manager = cols[5] || ''; let location = cols[11] || ''; let model = cols[14] || '';    
+                let color = cols[17] || ''; let serial = cols[18] || ''; let holdPeriod = cols[34] || ''; 
+                let tColData = cols[19] || ''; let status = cols[21] || ''; let openedStock = cols[36] || ''; 
+                if (model) model = model.replace(/so/gi, '');
+                if (color.trim() !== "") allColorSet.add(color.trim());
+                csvData.push({ '영업담당': manager, '보유처': location, '모델명': model, '색상': color, '일련번호': serial, '보유기간': holdPeriod, 'T열': tColData, '상태': status, '개봉여부': openedStock });
             }
         }
 
-        function filterColorDropdown() {
-            const modelQuery = document.getElementById('modelSearch').value.toLowerCase().trim();
-            updateColorDropdown(modelQuery);
-        }
+        function filterColorDropdown() { const modelQuery = document.getElementById('modelSearch').value.toLowerCase().trim(); updateColorDropdown(modelQuery); }
 
         function updateColorDropdown(modelQuery) {
-            const colorSelect = document.getElementById('colorSearch');
-            const previousSelectedValue = colorSelect.value;
-            
-            colorSelect.innerHTML = '<option value="">-- 전체 --</option>';
-            let filteredColors = new Set();
-
-            if (modelQuery === "") {
-                filteredColors = allColorSet;
-            } else {
-                csvData.forEach(row => {
-                    if (row['모델명'].toLowerCase().includes(modelQuery) && row['색상'].trim() !== "") {
-                        filteredColors.add(row['색상'].trim());
-                    }
-                });
-            }
-
+            const colorSelect = document.getElementById('colorSearch'); const previousSelectedValue = colorSelect.value;
+            colorSelect.innerHTML = '<option value="">-- 전체 --</option>'; let filteredColors = new Set();
+            if (modelQuery === "") { filteredColors = allColorSet; } 
+            else { csvData.forEach(row => { if (row['모델명'].toLowerCase().includes(modelQuery) && row['색상'].trim() !== "") { filteredColors.add(row['색상'].trim()); } }); }
             const sortedColors = Array.from(filteredColors).sort();
             sortedColors.forEach(color => {
-                const option = document.createElement('option');
-                option.value = color;
-                option.textContent = color;
-                
-                if (color === previousSelectedValue) {
-                    option.selected = true;
-                }
-                
+                const option = document.createElement('option'); option.value = color; option.textContent = color;
+                if (color === previousSelectedValue) option.selected = true;
                 colorSelect.appendChild(option);
             });
         }
 
         function getDistance(lat1, lng1, lat2, lng2) {
-            const R = 6371; 
-            const dLat = (lat2 - lat1) * Math.PI / 180;
-            const dLng = (lng2 - lng1) * Math.PI / 180;
-            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                      Math.sin(dLng/2) * Math.sin(dLng/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            return R * c; 
+            const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng/2) * Math.sin(dLng/2);
+            return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))); 
         }
 
         function searchData() {
             const baseLoc = document.getElementById('baseLocationSelect').value;
             const modelQuery = document.getElementById('modelSearch').value.toLowerCase().trim();
             const colorQuery = document.getElementById('colorSearch').value.toLowerCase().trim(); 
-            
-            const tbody = document.getElementById('resultBody');
-            const container = document.getElementById('tableContainer');
-            const noResult = document.getElementById('noResult');
-            
-            tbody.innerHTML = ''; 
-
-            const baseCoord = coordData[baseLoc];
+            const tbody = document.getElementById('resultBody'); const container = document.getElementById('tableContainer'); const noResult = document.getElementById('noResult');
+            tbody.innerHTML = ''; const baseCoord = coordData[baseLoc];
 
             let filtered = csvData.filter(row => {
-                const matchModel = modelQuery === '' || row['모델명'].toLowerCase().includes(modelQuery);
-                const matchColor = colorQuery === '' || row['색상'].toLowerCase().includes(colorQuery);
-                return matchModel && matchColor;
+                return (modelQuery === '' || row['모델명'].toLowerCase().includes(modelQuery)) && (colorQuery === '' || row['색상'].toLowerCase().includes(colorQuery));
             });
 
             filtered.forEach(row => {
                 const targetCoord = coordData[row['보유처']];
-                if (baseCoord && targetCoord) {
-                    row['거리'] = getDistance(baseCoord.lat, baseCoord.lng, targetCoord.lat, targetCoord.lng);
-                } else {
-                    row['거리'] = 99999; 
-                }
+                row['거리'] = (baseCoord && targetCoord) ? getDistance(baseCoord.lat, baseCoord.lng, targetCoord.lat, targetCoord.lng) : 99999;
             });
 
-            if (baseCoord) {
-                filtered.sort((a, b) => a['거리'] - b['거리']);
-            }
+            if (baseCoord) filtered.sort((a, b) => a['거리'] - b['거리']);
 
             if (filtered.length > 0) {
                 filtered.forEach(row => {
-                    const tr = document.createElement('tr');
-                    let distanceDisplay = '-';
-                    
-                    if (baseCoord && row['거리'] !== 99999) {
-                        distanceDisplay = row['거리'] < 0.1 ? '★ 내 위치' : row['거리'].toFixed(1) + ' km';
-                    }
-                    
+                    const tr = document.createElement('tr'); let distanceDisplay = '-';
+                    if (baseCoord && row['거리'] !== 99999) distanceDisplay = row['거리'] < 0.1 ? '★ 내 위치' : row['거리'].toFixed(1) + ' km';
                     let hasWarning = row['상태'] && row['상태'].trim() !== '' && row['상태'] !== '정상';
                     let hasOpened = row['개봉여부'] && row['개봉여부'].trim() !== '' && row['개봉여부'] !== '미개봉';
-                    
-                    if (hasWarning && (row['상태'].includes('불량') || row['상태'].includes('분실'))) {
-                        tr.classList.add('row-warning'); 
-                    } else if (hasOpened && row['개봉여부'].includes('개봉')) {
-                        tr.classList.add('row-opened');  
-                    }
-                    
-                    let statusList = [];
-                    if (hasWarning) statusList.push(row['상태'].trim());
-                    if (hasOpened) statusList.push(row['개봉여부'].trim());
-                    
-                    let finalStatus = statusList.join('/') || '정상';
-                    let finalRemark = row['T열'] || '-'; 
-                    
+                    if (hasWarning && (row['상태'].includes('불량') || row['상태'].includes('분실'))) { tr.classList.add('row-warning'); } 
+                    else if (hasOpened && row['개봉여부'].includes('개봉')) { tr.classList.add('row-opened'); }
+                    let statusList = []; if (hasWarning) statusList.push(row['상태'].trim()); if (hasOpened) statusList.push(row['개봉여부'].trim());
+                    let finalStatus = statusList.join('/') || '정상'; let finalRemark = row['T열'] || '-'; 
                     let statusColor = '#2c3e50';
-                    if (hasWarning && (row['상태'].includes('불량') || row['상태'].includes('분실'))) {
-                        statusColor = '#e74c3c';
-                    } else if (hasOpened && row['개봉여부'].includes('개봉')) {
-                        statusColor = '#374151';
-                    }
+                    if (hasWarning && (row['상태'].includes('불량') || row['상태'].includes('분실'))) statusColor = '#e74c3c';
+                    else if (hasOpened && row['개봉여부'].includes('개봉')) statusColor = '#374151';
                     
                     tr.innerHTML = `
-                        <td>${row['영업담당']}</td>
-                        <td>${row['보유처']}</td>
-                        <td>${row['모델명']}</td>
-                        <td>${row['색상']}</td>
-                        <td>${row['일련번호']}</td>
-                        <td>${row['보유기간']}</td> 
+                        <td>${row['영업담당']}</td><td>${row['보유처']}</td><td>${row['모델명']}</td><td>${row['색상']}</td><td>${row['일련번호']}</td><td>${row['보유기간']}</td> 
                         <td style="font-weight: bold; color: ${row['거리'] < 0.1 ? '#2ecc71' : (row['거리'] === 99999 ? '#95a5a6' : '#e67e22')};">${distanceDisplay}</td>
-                        <td style="font-weight: bold; color: ${statusColor};">${finalStatus}</td>
-                        <td>${finalRemark}</td>
+                        <td style="font-weight: bold; color: ${statusColor};">${finalStatus}</td><td>${finalRemark}</td>
                     `;
                     tbody.appendChild(tr);
                 });
-                container.style.display = 'block';
-                noResult.style.display = 'none';
+                container.style.display = 'block'; noResult.style.display = 'none';
             } else {
-                container.style.display = 'none';
-                noResult.style.display = 'block';
+                container.style.display = 'none'; noResult.style.display = 'block';
             }
         }
 
         function resetForm() {
-            document.getElementById('baseLocationSearch').value = '';
-            document.getElementById('modelSearch').value = '';
-            updateDropdown(""); 
-            updateColorDropdown(""); 
-            document.getElementById('resultBody').innerHTML = '';
-            document.getElementById('tableContainer').style.display = 'none';
-            document.getElementById('noResult').style.display = 'none';
+            document.getElementById('baseLocationSearch').value = ''; document.getElementById('modelSearch').value = '';
+            updateDropdown(""); updateColorDropdown(""); document.getElementById('resultBody').innerHTML = '';
+            document.getElementById('tableContainer').style.display = 'none'; document.getElementById('noResult').style.display = 'none';
+            document.getElementById('dataFile').value = ''; // 파일 인풋도 비워줌
         }
     </script>
 </body>
