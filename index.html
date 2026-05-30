@@ -118,9 +118,9 @@
     <div id="noResult" class="no-result" style="display: none;">❌ 검색 결과가 없습니다.</div>
 
     <script>
-        let csvData = [];          
-        let coordData = {};        
-        let allColorSet = new Set(); 
+        let csvData = [];
+        let coordData = {};
+        let allColorSet = new Set();
 
         window.onload = function() {
             loadInitialData();
@@ -133,7 +133,7 @@
             fetch('coordinate.csv?t=' + new Date().getTime())
                 .then(response => {
                     if (!response.ok) throw new Error('coordinate.csv 파일을 찾을 수 없습니다.');
-                    return response.arrayBuffer(); 
+                    return response.arrayBuffer();
                 })
                 .then(buffer => {
                     parseCoordinateCSV(decodeBufferAuto(buffer));
@@ -146,7 +146,7 @@
                 .then(buffer => {
                     parseDataCSV(decodeBufferAuto(buffer));
                     updateColorDropdown("");
-                    updateDebugStatus(); 
+                    updateDebugStatus();
                 })
                 .catch(error => {
                     showErrorStatus(error.message);
@@ -211,7 +211,7 @@
             for (let i = 1; i < lines.length; i++) {
                 if (!lines[i].trim()) continue;
                 const cols = splitCSVLine(lines[i]);
-                let locName = cols[0] ? cols[0].replace(/"/g, '') : '';   
+                let locName = cols[0] ? cols[0].replace(/"/g, '') : '';
                 let lat = parseFloat(cols[1]);
                 let lng = parseFloat(cols[2]);
                 
@@ -267,15 +267,15 @@
                 
                 if (cols[35] && cols[35].includes('시연')) continue;
 
-                let manager = cols[5] || '';    
-                let location = cols[11] || '';  
-                let model = cols[14] || '';     
-                let color = cols[17] || '';     
-                let serial = cols[18] || '';    
+                let manager = cols[5] || '';
+                let location = cols[11] || '';
+                let model = cols[14] || '';
+                let color = cols[17] || '';
+                let serial = cols[18] || '';
                 let holdPeriod = cols[34] || '';
-                let tColData = cols[19] || '';  
-                let status = cols[21] || '';    
-                let openedStock = cols[36] || ''; 
+                let tColData = cols[19] || '';
+                let status = cols[21] || '';
+                let openedStock = cols[36] || '';
 
                 if (model) {
                     model = model.replace(/so/gi, '');
@@ -307,6 +307,4 @@
         function updateColorDropdown(modelQuery) {
             const colorSelect = document.getElementById('colorSearch');
             const previousSelectedValue = colorSelect.value;
-            colorSelect.innerHTML = '<option value="">-- 전체 --</option>';
-
-            let filteredColors = new
+            colorSelect.innerHTML = '<option value="">
