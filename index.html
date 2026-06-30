@@ -169,6 +169,7 @@
         let csvData = [];          
         let coordData = {};        
         let allColorSet = new Set(); 
+        let lastUpdatedTime = ""; // 마지막 업로드 시간 기록 변수
 
         const OWNER = "moyeonwon";    // 깃허브 아이디
         const REPO = "my-project";     // 저장소(Repository) 이름
@@ -188,6 +189,25 @@
             .then(buffer => {
                 const text = decodeBufferAuto(buffer);
                 parseCoordinateCSV(text);
+                
+                // data.csv 로드 시 메타데이터(업로드 시간 파악용)를 함께 가져오기 위해 주소 변경없이 2번의 처리를 하거나 커밋 로그를 조회할 수 있으나,
+                // 가장 간단하고 정확하게 파일의 마지막 수정 시간을 가져오기 위해 커밋 API 혹은 REST 파일 조회 결과의 헤더/커밋 데이터를 활용합니다.
+                // 여기서는 data.csv의 상세 정보를 먼저 가져와서 시간을 파악합니다.
+                return fetch(`https://api.github.com/repos/${OWNER}/${REPO}/commits?path=data.csv&per_page=1`, {
+                    headers: { "Authorization": G_AUTH }
+                });
+            })
+            .then(res => {
+                if (res.ok) {
+                    return res.json().then(commits => {
+                        if (commits && commits.length > 0) {
+                            const commitDate = new Date(commits[0].commit.committer.date);
+                            lastUpdatedTime = formatDate(commitDate);
+                        }
+                    });
+                }
+            })
+            .then(() => {
                 return fetch(`https://api.github.com/repos/${OWNER}/${REPO}/contents/data.csv?v=${Date.now()}`, {
                     headers: { "Authorization": G_AUTH, "Accept": "application/vnd.github.v3.raw" }
                 });
@@ -259,6 +279,8 @@
                     });
 
                     if (putRes.ok) {
+                        // 업로드 성공 시 현재 시간을 마지막 업로드 시간으로 세팅
+                        lastUpdatedTime = formatDate(new Date());
                         updateDebugStatus();
                         alert("✅ 서버 파일 교체 완료! 변경된 재고로 조회됩니다.");
                     } else {
@@ -289,13 +311,27 @@
             return new TextDecoder(encoding).decode(buffer);
         }
 
+        // 날짜 포맷 함수 (예: 2023-10-24 15:30:45)
+        function formatDate(date) {
+            const yyyy = date.getFullYear();
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            const hh = String(date.getHours()).padStart(2, '0');
+            const min = String(date.getMinutes()).padStart(2, '0');
+            const ss = String(date.getSeconds()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+        }
+
         function updateDebugStatus() {
             const coordCount = Object.keys(coordData).length;
             const debugEl = document.getElementById('debugBox');
             debugEl.style.backgroundColor = '#e8f8f5';
             debugEl.style.borderColor = '#a3e4d7';
             debugEl.style.color = '#117a65';
-            debugEl.innerHTML = `✅ 데이터 연동 완료! (등록된 판매처: ${coordCount}곳 / 등록된 재고: ${csvData.length}건)`;
+            
+            // 요청하신 형태로 문구 변경
+            const timeDisplay = lastUpdatedTime ? `(${lastUpdatedTime})` : "(시간 정보 없음)";
+            debugEl.innerHTML = `✅ 데이터 연동 완료! ${timeDisplay}`;
         }
 
         function showErrorStatus(message) {
