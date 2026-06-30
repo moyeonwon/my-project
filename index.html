@@ -16,7 +16,6 @@
         input, select { padding: 10px; width: 220px; border: 1px solid #ccd1d9; border-radius: 6px; font-size: 14px; box-sizing: border-box; background-color: #fff; }
         input:focus, select:focus { border-color: #3498db; outline: none; }
         
-        /* 버튼 그룹 스타일 정의 */
         .btn-group { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px; }
         
         button { 
@@ -169,10 +168,10 @@
         let csvData = [];          
         let coordData = {};        
         let allColorSet = new Set(); 
-        let lastUpdatedTime = ""; // 마지막 업로드 시간 기록 변수
+        let lastUpdatedTime = "";
 
-        const OWNER = "moyeonwon";    // 깃허브 아이디
-        const REPO = "my-project";     // 저장소(Repository) 이름
+        const OWNER = "moyeonwon";    
+        const REPO = "my-project";     
         
         const T_1 = "ghp_QCkeOEuALhBV3EMe"; 
         const T_2 = "0YKZmUI29V2UXp47VQ24";
@@ -190,9 +189,6 @@
                 const text = decodeBufferAuto(buffer);
                 parseCoordinateCSV(text);
                 
-                // data.csv 로드 시 메타데이터(업로드 시간 파악용)를 함께 가져오기 위해 주소 변경없이 2번의 처리를 하거나 커밋 로그를 조회할 수 있으나,
-                // 가장 간단하고 정확하게 파일의 마지막 수정 시간을 가져오기 위해 커밋 API 혹은 REST 파일 조회 결과의 헤더/커밋 데이터를 활용합니다.
-                // 여기서는 data.csv의 상세 정보를 먼저 가져와서 시간을 파악합니다.
                 return fetch(`https://api.github.com/repos/${OWNER}/${REPO}/commits?path=data.csv&per_page=1`, {
                     headers: { "Authorization": G_AUTH }
                 });
@@ -279,7 +275,6 @@
                     });
 
                     if (putRes.ok) {
-                        // 업로드 성공 시 현재 시간을 마지막 업로드 시간으로 세팅
                         lastUpdatedTime = formatDate(new Date());
                         updateDebugStatus();
                         alert("✅ 서버 파일 교체 완료! 변경된 재고로 조회됩니다.");
@@ -311,7 +306,6 @@
             return new TextDecoder(encoding).decode(buffer);
         }
 
-        // 날짜 포맷 함수 (예: 2023-10-24 15:30:45)
         function formatDate(date) {
             const yyyy = date.getFullYear();
             const mm = String(date.getMonth() + 1).padStart(2, '0');
@@ -323,15 +317,13 @@
         }
 
         function updateDebugStatus() {
-            const coordCount = Object.keys(coordData).length;
             const debugEl = document.getElementById('debugBox');
             debugEl.style.backgroundColor = '#e8f8f5';
             debugEl.style.borderColor = '#a3e4d7';
             debugEl.style.color = '#117a65';
             
-            // 요청하신 형태로 문구 변경
-            const timeDisplay = lastUpdatedTime ? `(${lastUpdatedTime})` : "(시간 정보 없음)";
-            debugEl.innerHTML = `✅ 데이터 연동 완료! ${timeDisplay}`;
+            const timeDisplay = lastUpdatedTime ? lastUpdatedTime : "시간 정보 없음";
+            debugEl.innerHTML = `데이터 업데이트 일시: ${timeDisplay}`;
         }
 
         function showErrorStatus(message) {
@@ -469,7 +461,7 @@
             document.getElementById('baseLocationSearch').value = ''; document.getElementById('modelSearch').value = '';
             updateDropdown(""); updateColorDropdown(""); document.getElementById('resultBody').innerHTML = '';
             document.getElementById('tableContainer').style.display = 'none'; document.getElementById('noResult').style.display = 'none';
-            document.getElementById('dataFile').value = ''; // 파일 인풋도 비워줌
+            document.getElementById('dataFile').value = ''; 
         }
     </script>
 </body>
